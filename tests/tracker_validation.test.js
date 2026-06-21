@@ -8,9 +8,11 @@ const repoRoot = path.resolve(__dirname, '..');
 const trackerFiles = [
   'js/action_metadata.js',
   'js/tracker_state.js',
+  'js/tracker_render_setup.js',
   'js/tracker_render.js',
   'js/tracker_gameplay.js',
-  'js/tracker_persistence.js'
+  'js/tracker_persistence.js',
+  'js/tracker_setup.js'
 ];
 
 function readProjectFile(filePath) {
@@ -427,6 +429,7 @@ test('setup screen renders stage two defaults safely', () => {
     assert.match(markup, new RegExp(`value="${name}"`))
   );
   assert.equal([...markup.matchAll(/data-change-action="set-setup-crew-name"/g)].length, 6);
+  assert.equal([...markup.matchAll(new RegExp(`maxlength="${30}" required`, 'g'))].length, 6);
   [
     'Sailor/Pirate',
     'Fisherman',
@@ -443,6 +446,51 @@ test('setup screen renders stage two defaults safely', () => {
   assert.match(markup, /data-action="reset-setup-defaults"/);
   assert.match(markup, /data-action="start-setup-voyage" disabled/);
   assert.match(markup, /will not replace it/);
+});
+
+test('setup crew name validation trims and rejects invalid names', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const requiredDraft = defaultSetupDraft();
+    requiredDraft.crew[1].name = '   ';
+    const longDraft = defaultSetupDraft();
+    longDraft.crew[2].name = 'x'.repeat(CREW_NAME_MAX_LENGTH + 1);
+    const duplicateDraft = defaultSetupDraft();
+    duplicateDraft.crew[0].name = ' Mira ';
+    duplicateDraft.crew[1].name = 'mira';
+    const inactiveDuplicateDraft = defaultSetupDraft();
+    inactiveDuplicateDraft.crewSize = 4;
+    inactiveDuplicateDraft.crew[0].name = 'Mira';
+    inactiveDuplicateDraft.crew[4].name = 'mira';
+    return {
+      required: setupCrewNameValidationErrors(requiredDraft),
+      longName: setupCrewNameValidationErrors(longDraft),
+      duplicate: setupCrewNameValidationErrors(duplicateDraft),
+      inactiveDuplicate: setupCrewNameValidationErrors(inactiveDuplicateDraft),
+      normalized: normalizedSetupCrewName('  Keel  ')
+    };
+  })()`);
+
+  assert.match(result.required.join(' '), /Crew 2 name is required/);
+  assert.match(result.longName.join(' '), /Crew 3 name must be 30 characters or fewer/);
+  assert.match(result.duplicate.join(' '), /Crew 2 name duplicates Crew 1/);
+  assert.equal(result.inactiveDuplicate.length, 0);
+  assert.equal(result.normalized, 'Keel');
+});
+
+test('setup crew name errors render on setup screen', () => {
+  const tracker = loadTrackerContext();
+  const markup = tracker.evaluate(`(() => {
+    const draft = defaultSetupDraft();
+    draft.crew[0].name = 'Leopold';
+    draft.crew[1].name = ' leopold ';
+    draft.crew[2].name = '';
+    return setupScreenMarkup(draft, false);
+  })()`);
+
+  assert.match(markup, /Crew 2 name duplicates Crew 1/);
+  assert.match(markup, /Crew 3 name is required/);
+  assert.match(markup, /role="alert"/);
 });
 
 test('setup crew size supports four through seven players', () => {
@@ -485,7 +533,7 @@ test('setup crew size supports four through seven players', () => {
   assert.equal(result.sevenSelected, true);
   assert.equal(result.playerSeven, 'Player 7');
   assert.equal(result.clampedSize, 7);
-  assert.equal(result.renderCount, 3);
+  assert.equal(result.renderCount, 4);
 });
 
 test('setup back and reset stay in memory only', () => {
@@ -496,7 +544,7 @@ test('setup back and reset stay in memory only', () => {
     appMode = 'setup';
     localStorage.setItem('openSeaTracker', JSON.stringify({...defaultState, day: 5, shipName: 'Saved Ship'}));
     setSetupField('shipName', 'Draft Ship');
-    setSetupCrewName(0, 'Mira');
+    setSetupCrewName(0, ' Mira ');
     setSetupCrewTrait(0, 'navigatorToolsProficiency', true);
     setSetupCrewTrait(1, 'fishermanBackground', true);
     setSetupCrewTrait(2, 'waterVehiclesProficiency', true);
@@ -538,7 +586,12 @@ test('setup back and reset stay in memory only', () => {
 });
 
 test('DM controls use delegated handlers with full dispatcher coverage', () => {
-  const files = ['open_sea_tracker.html', 'js/tracker_render.js', 'js/tracker_gameplay.js'];
+  const files = [
+    'open_sea_tracker.html',
+    'js/tracker_render_setup.js',
+    'js/tracker_render.js',
+    'js/tracker_gameplay.js'
+  ];
   const combined = files.map(readProjectFile).join('\n');
   assert.equal(/on(?:click|change|input)=/.test(combined), false);
 

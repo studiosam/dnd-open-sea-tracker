@@ -188,6 +188,20 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+.setup-validation {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(223, 112, 66, 0.6);
+  border-radius: 12px;
+  background: rgba(223, 112, 66, 0.12);
+  color: var(--text);
+  font-size: 14px;
+}
+.setup-validation.ok {
+  border-color: rgba(127, 199, 255, 0.45);
+  background: rgba(127, 199, 255, 0.1);
+  color: var(--muted);
+}
 .setup-crew-row {
   padding: 14px;
   border: 1px solid rgba(91, 185, 232, 0.22);

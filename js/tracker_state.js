@@ -4,6 +4,7 @@ const PLAYER_STATE_KEY = 'openSeaPlayerState';
 const ACTION_COMMIT_SNAPSHOT_KEY = 'openSeaActionCommitSnapshot';
 const DEFAULT_SHIP_NAME = 'The Marrowwind';
 const SHIP_NAME_MAX_LENGTH = 60;
+const CREW_NAME_MAX_LENGTH = 30;
 const TRAVEL_TICKS_PER_DAY = 8;
 const DEFAULT_TRAVEL_TICKS = 44;
 const DEFAULT_COURSE_METER = 12;
@@ -472,6 +473,39 @@ function setupCrewDraftFromMember(member) {
       SETUP_CREW_TRAIT_FIELDS.map(({ field }) => [field, Boolean(member[field])])
     )
   };
+}
+function normalizedSetupCrewName(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+function setupCrewForValidation(draft) {
+  const crew = draft && Array.isArray(draft.crew) ? draft.crew : [];
+  const crewSize = clampSetupCrewSize(draft?.crewSize ?? (crew.length || crewNames.length));
+  return Array.from(
+    { length: crewSize },
+    (_, index) => crew[index] || { name: defaultCrewName(index) }
+  );
+}
+function setupCrewNameValidationErrors(draft) {
+  const seenNames = new Map();
+  const errors = [];
+  setupCrewForValidation(draft).forEach((character, index) => {
+    const label = `Crew ${index + 1}`;
+    const name = normalizedSetupCrewName(character.name);
+    if (!name) {
+      errors.push(`${label} name is required.`);
+      return;
+    }
+    if (name.length > CREW_NAME_MAX_LENGTH) {
+      errors.push(`${label} name must be ${CREW_NAME_MAX_LENGTH} characters or fewer.`);
+    }
+    const duplicateKey = name.toLocaleLowerCase();
+    if (seenNames.has(duplicateKey)) {
+      errors.push(`${label} name duplicates ${seenNames.get(duplicateKey)}.`);
+      return;
+    }
+    seenNames.set(duplicateKey, label);
+  });
+  return errors;
 }
 function defaultCrewName(index) {
   return crewNames[index] || `Player ${index + 1}`;
