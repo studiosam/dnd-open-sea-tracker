@@ -2,19 +2,49 @@
 
 ## Overview
 
-Build a single-page HTML, CSS, and JavaScript tracker for a D&D open-sea survival subsystem aboard a damaged ship called the Marrowwind.
+Build a local browser-based HTML, CSS, and JavaScript tracker for a D&D open-sea survival subsystem aboard a damaged ship called the Marrowwind.
 
-The tracker is for the DM to run locally during a session. It should track the ship, crew, supplies, open sea events, planned actions, and turn resolution. Keep it as one local HTML file unless there is a strong reason to split it.
+The tracker is for the DM to run locally during a session. It should track the ship, crew, supplies, open sea events, planned actions, and turn resolution. The DM and player views are separate HTML pages, with shared styling and split JavaScript files.
 
 The tracker should automate bookkeeping, not replace DM judgment. Manual overrides must always be available.
 
 ## Starting File
 
-Start from:
+Primary entry points:
 
 `open_sea_tracker.html`
+`player_view.html`
 
-Preserve and improve the current file incrementally unless the existing structure is unusable.
+Preserve and improve the current structure incrementally unless the existing structure is unusable.
+
+## Implementation Structure
+
+The DM tracker uses classic browser scripts and delegated event handling so it remains build-free. Static and generated controls should use `data-action` for click actions or `data-change-action` for change actions. `tracker_gameplay.js` owns the delegated event dispatchers.
+
+DM tracker script order:
+
+1. `action_metadata.js`
+2. `tracker_state.js`
+3. `tracker_render.js`
+4. `tracker_gameplay.js`
+5. `tracker_persistence.js`
+6. `tracker.js`
+
+Responsibilities:
+
+* `tracker_state.js` contains shared state, rule tables, and low-level rule helpers.
+* `tracker_render.js` contains DM screen rendering and UI view helpers.
+* `tracker_gameplay.js` contains DM action handlers, prompts, turn flow, events, meals, and overtime behavior.
+* `tracker_persistence.js` contains save/load, export/import, player-state publishing, validation, migration, and labels.
+* `tracker.js` only boots the tracker after support scripts are loaded.
+* `tests/` contains Node tests that load the browser scripts in a VM and exercise validation, migration, import safety, and event-binding coverage.
+
+Implementation conventions:
+
+* Do not add inline `onclick`, `onchange`, or `oninput` attributes.
+* Add new button actions through the delegated dispatcher in `tracker_gameplay.js`.
+* Keep generated markup declarative with `data-*` attributes where practical.
+* Run `npm test` after rule, import, migration, or event-binding changes.
 
 ## Design Philosophy
 
@@ -27,6 +57,20 @@ Preserve and improve the current file incrementally unless the existing structur
 * Keep all characters visible while assigning actions. Dropdowns or compact controls are allowed when they reduce clutter.
 * Use large, readable buttons.
 * Make it usable on a monitor during a live D&D session.
+
+## Save Import Safety
+
+Import should accept exported tracker JSON and compatible older tracker-state shapes, then migrate them to the current state model.
+
+Import must reject:
+
+* Non-object JSON payloads.
+* Oversized files.
+* Unsafe object keys such as `__proto__`, `constructor`, or `prototype`.
+* Invalid number fields, invalid status fields, malformed crew entries, or malformed state maps.
+* Migrated states that still contain impossible crew sizes, non-finite numeric fields, or unknown action ids.
+
+Import should create an undo snapshot before replacing the current state so the DM can recover during the same page session.
 
 ## Core Turn Structure
 
@@ -131,6 +175,9 @@ Track:
 * Day
 * Turn
 * Travel Remaining
+* Travel Remaining in ticks, stored internally as 8 travel ticks = 1 day
+* Course Meter
+* Course State
 * Water Level
 * Minimum Water Ingress
 * Active Leaks
@@ -146,12 +193,51 @@ Water Ingress formula:
 
 Current starting values:
 
-* Travel Remaining: 5.5 days
+* Travel Remaining: 5.5 days / 44 travel ticks
+* Course Meter: 12 / True Course
 * Water Level: 1
-* Minimum Water Ingress: 2
-* Active Leaks: 2
+* Minimum Water Ingress: 1
+* Active Leaks: 0
 * Food: 3.0 crew-days
 * Water: 3.0 crew-days
+
+## Course Meter Navigation
+
+The Course Meter is the single navigation meter for the voyage system.
+
+The Course Meter determines the ship's current Course State. The Course State determines the travel change for the turn.
+
+Keep this system simple. Do not add Spot Hazard, Read Sea Conditions, weather subsystems, morale systems, cargo systems, or additional maritime phases.
+
+Course Meter rules:
+
+* Course Meter ranges from 0 to 12.
+* Course Meter cannot go below 0.
+* Course Meter cannot go above 12.
+* At the end of each voyage turn, Course Meter decreases by 1.
+* Do not add conditional degradation rolls.
+* Travel is stored internally as ticks instead of decimal days.
+* Use 8 travel ticks = 1 day.
+* The player view should continue displaying Travel Remaining as readable days rounded to the nearest half day.
+* The DM view should expose the exact travel tick value.
+
+Course Meter ranges:
+
+| Course Meter | Course State |
+| -----------: | ------------ |
+|     10 to 12 | True Course  |
+|       7 to 9 | Drifting     |
+|       4 to 6 | Off Course   |
+|       0 to 3 | Lost         |
+
+Travel effects:
+
+| Course State | Travel Change |
+| ------------ | ------------- |
+| True Course  | Travel Remaining decreases by 0.25 days, which is -2 ticks. |
+| Drifting     | Travel Remaining decreases by 0.125 days, which is -1 tick. |
+| Off Course   | Travel Remaining changes by 0 days, which is 0 ticks. |
+| Lost         | Travel Remaining increases by 0.125 days, which is +1 tick. |
 
 ## Ship Systems
 
@@ -162,6 +248,12 @@ Track status for:
 * Bilge Pump: Working / Jammed
 * Net: Ready / Tangled
 * Rigging: Intact / Broken
+
+System meanings:
+
+* Mast controls whether the ship can make sail progress.
+* Rudder controls whether the ship can be steered.
+* Course Meter controls normal Helm travel only when both mast and rudder are functional.
 
 ## Water Level Effects
 
@@ -203,19 +295,37 @@ Inventory Cargo
 * Determines what cargo remains.
 * Takes 1 turn normally, or 2 turns if the cargo hold is flooded.
 
-Study / Research
+Navigate / Study Map
 
-* Used only if needed. Most map and skeleton research may already happen before active tracking begins.
+* Represents studying the map, checking bearings, comparing charts, plotting the route, or otherwise correcting the ship's course.
+* Affects the Course Meter, not Travel Remaining directly.
+* Critical failure: Course Meter +0.
+* Failure: Course Meter +2.
+* Success: Course Meter +4.
+* Critical success: Course Meter +5.
+* Cap Course Meter at 12 after applying the result.
+* The resulting Course State becomes visible to players whether the check succeeds or fails.
+* If this action resolves during a turn, skip the normal end-of-turn Course Meter decay for that turn.
+* Advantage comes from proficiency with Navigator's Tools or Cartographer's Tools.
+* Sailor or Pirate background does not give advantage by default.
+* Perception is not a core navigation substitute.
 
 ### 1 Labor Actions
 
 Man Helm
 
-* Requires helm check.
-* Normally Survival DC 12.
-* Leopold and Toady roll with advantage because of sailor or pirate background.
-* On success: Travel Remaining -0.25 days.
-* If mast or rudder is broken, helm cannot reduce travel.
+* Represents physically steering the ship and making use of the current Course State.
+* If mast and rudder are both functional, requires a Survival DC 12 helm check.
+* On critical success, apply one Course State better for this turn and improve the Course Meter to the next better Course State.
+* On success, apply the current Course State's travel effect.
+* On failure, apply one Course State worse for this turn only.
+* On critical failure, apply one Course State worse for this turn only and reduce Course Meter by 1.
+* If the ship is already Lost, one Course State worse still uses Lost.
+* Advantage comes from Sailor background, Pirate background, or proficiency with Water Vehicles.
+* Navigator's Tools and Cartographer's Tools do not grant advantage on Man Helm.
+* If the mast is broken, do not roll a helm check. The action still costs Labor, but the ship cannot make sail progress and Helm applies no travel tick change.
+* If the rudder is broken but the mast is functional, do not roll a helm check. Randomly apply one Course State travel result from True Course, Drifting, Off Course, or Lost. This random result ignores the current Course Meter.
+* If both mast and rudder are broken, use the broken mast behavior: no helm check, no random rudder movement, and no travel progress from Helm.
 
 Operate Bilge Pump
 
@@ -268,6 +378,7 @@ Harpoon Fishing
 * Survival check.
 * DC 18: +0.5 day Food.
 * DC 20: +1 day Food.
+* Fisherman background grants advantage.
 
 ### 2-Player Actions
 
@@ -281,6 +392,7 @@ Cast Net
 * Success: +0.5 days Food.
 * After use, Net becomes Tangled.
 * If School of Fish event is active, roll with advantage.
+* Fisherman background grants advantage to that participant's fishing check.
 
 Harpoon Fishing with Assistance
 
@@ -290,6 +402,7 @@ Harpoon Fishing with Assistance
 * DC 18: +1 day Food.
 * DC 20: +2 days Food.
 * If Large Shadow event is active, roll with advantage.
+* Fisherman background grants advantage to that participant's fishing check.
 
 ## Major Repairs
 
@@ -300,7 +413,9 @@ Major Repair: Mast or Rudder
 * Costs Labor according to the current tracker design.
 * If Water Level is 5+, takes +1 turn.
 * If Water Level is 10+, costs +1 additional Labor.
-* Mast and rudder must be repaired before travel can resume normally.
+* Mast controls sail progress; while broken, Helm cannot make travel progress.
+* Rudder controls steering; while broken with a functional mast, Helm movement is random drift rather than a normal Course Meter check.
+* Both mast and rudder must be repaired before normal Course Meter Helm behavior resumes.
 
 ## Open Sea Event Table
 
@@ -528,9 +643,17 @@ The DM must be able to manually adjust:
 Player-facing knowledge rules:
 
 * Water Level is exact only when the players check the Bilge Sounding Rod or when water is visibly in the cargo hold.
-* Total Water Ingress becomes player-facing only when the players know the current Water Level for two turns in a row.
+* Checking the Bilge Sounding Rod reveals the current Water Level.
+* Succeeding on the Bilge Sounding Rod check reveals Total Water Ingress immediately.
+* Total Water Ingress also becomes player-facing when the players know the current Water Level for two turns in a row.
 * If the current Water Level is not known for the current turn, Total Water Ingress returns to unknown.
 * Minimum Water Ingress remains DM-facing.
+
+Scripted scene turns:
+
+* `Force All Idle for Scene` lets the DM handle the current turn as narration/manual resolution instead of normal action resolution.
+* It sets crew actions to Idle, removes normal action checks, pauses ongoing work, and logs the scene handling.
+* It does not automatically apply specific encounter consequences.
 
 ## Visual Design
 

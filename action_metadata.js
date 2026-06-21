@@ -5,7 +5,7 @@
     {id:'inventoryWater', short:'Water Inv.', name:'Inventory Water', playerLabel:'Inventory Water', labor:0, belowDeck:true, manual:'Update the total amount of drinking water available to the players.', reveals:['freshWater']},
     {id:'inventoryRepairs', short:'Repair Inv.', name:'Inventory Repair Supplies', playerLabel:'Check Supplies', labor:0, belowDeck:true, manual:'Update the total amount of repair supplies available to the players.', reveals:['repairMaterials']},
     {id:'inventoryCargo', short:'Cargo Inv.', name:'Inventory Cargo', playerLabel:'Inventory Cargo', labor:0, belowDeck:true, manual:'Update cargo information available to the players.'},
-    {id:'studyMap', short:'Study Map', name:'Study Map', playerLabel:'Study Map', labor:0, manual:'Determine approximate travel time remaining.', reveals:['travel']},
+    {id:'studyMap', short:'Navigate', name:'Navigate / Study Map', playerLabel:'Navigate', labor:0, check:'navigate'},
     {id:'examineRod', short:'Bilge Rod', name:'Examine Bilge Sounding Rod', playerLabel:'Sound Bilge', labor:0, belowDeck:true, noFloodedExtraTurn:true, check:'bilgeRod'},
     {id:'fightGulls', short:'Fight Gulls', name:'Fight Pack of Gulls', playerLabel:'Fight Gulls', labor:0, requirement:'gullsPresent'},
     {id:'collectRainwater', short:'Rainwater', name:'Collect Rainwater', playerLabel:'Collect Rainwater', labor:0, requirement:'rainwaterAvailable'},

@@ -3,15 +3,39 @@
 -Inventory Water
 -Inventory Repair Supplies
 -Inventory Cargo
--Study a Map to Determine Approximate Travel Time Remaining
+-Study Map / Navigate
+Represents studying the map, checking bearings, comparing charts, plotting the route, or otherwise correcting the ship's course
+Critical Failure: Course Meter +0
+Failure: Course Meter +2
+Success: Course Meter +4
+Critical Success: Course Meter +5
+Course Meter is capped at 12
+Resulting Course State is shown to players whether the check succeeds or fails
+If this action resolves, skip the normal end-of-turn Course Meter decay for that turn
+Navigator's Tools or Cartographer's Tools proficiency rolls with advantage
+Sailor and Pirate Backgrounds do not grant advantage by default
+Perception is not a core navigation substitute
 -Examine the Bilge Sounding Rod for Water Levels
+Reveals current Water Level to the players
+Success reveals Total Ingress immediately
+Total Ingress is also revealed when Water Level is known two turns in a row
 Updates the total amount of each resource available to the player. 
+Study Map / Navigate corrects the ship's Course Meter.
 
 1 Labor - 1 Player - 1 Turn
 -Man the Helm
 Survival DC 12
-Success: Reduce Travel Time by 0.25 days
-Sailor and Pirate Backgrounds roll with advantage
+Used when mast and rudder are both functional
+Critical Success: Apply one Course State better for this turn only and improve the Course Meter to the next better Course State
+Success: Apply the current Course State travel effect
+Failure: Apply one Course State worse for this turn only
+Critical Failure: Apply one Course State worse for this turn only and reduce Course Meter by 1
+If the ship is already Lost, one Course State worse still uses Lost
+Sailor Background, Pirate Background, or Water Vehicles proficiency rolls with advantage
+Navigator's Tools and Cartographer's Tools do not grant advantage on Man the Helm
+Broken Mast: no Helm check; action still costs Labor, but Helm applies no travel tick change
+Broken Rudder with functional Mast: no Helm check; website randomly applies True Course, Drifting, Off Course, or Lost travel ticks, ignoring Course Meter
+Broken Mast and Broken Rudder: use Broken Mast behavior; no random rudder movement
 
 -Operate the Bilge Pump (solo)
 Strength DC 15
@@ -21,6 +45,7 @@ Failure: Reduce Water Level by 2
 -Harpoon Fishing (solo)
 Survival DC 18: +0.5 Food
 Survival DC 20: +1.0 Food
+Fisherman background rolls with advantage
 
 -Reset the Fishing Net
 Required after every use of the net to make the net available again
@@ -30,9 +55,6 @@ Required if the Bilge Pump jams to make the Bilge Pump usable on the next turn
 
 -Inventory Cargo, Water, Food, or Repair Supplies
 Updates the player's knowledge about the values of the category inventoried
-
--Study Map
-Updates the player's knowledge about the distance to their destination
 
 1 Labor - 1 Player - 2 Turns
 -Bucket Brigade
@@ -55,12 +77,14 @@ Failure: Reduce Water Level by 3
 Survival DC 15 (both players roll)
 Each success grants +0.25 days rations
 Net must be untangled for a turn before it can be used again
+Fisherman background rolls with advantage on that participant's check
 
 -Harpoon Fishing (cooperative)
 Survival Roll (both players roll, only higher roll counts)
 DC 15 +0.5 days rations
 DC 18 +1.0 days rations
 DC 20: +2 days rations
+Fisherman background rolls with advantage on that participant's check
 
 2 Labor - 2 Players - 2 Turns
 -Repair Mast

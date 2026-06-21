@@ -40,9 +40,11 @@ function publicStateFromFullState(state){
     day: state.day,
     turn: state.turn,
     travel: knownValueFromFullState(state, 'travel'),
+    courseState: knownValueFromFullState(state, 'courseState'),
     waterLevel: knownWaterLevelFromFullState(state),
     activeLeaks: state.activeLeaks,
     totalIngress: knownValueFromFullState(state, 'totalIngress'),
+    totalIngressSeverity: totalIngressSeverityFromFullState(state),
     food: knownValueFromFullState(state, 'food'),
     freshWater: knownValueFromFullState(state, 'freshWater'),
     repairMaterials: knownValueFromFullState(state, 'repairMaterials'),
@@ -125,6 +127,13 @@ function knownWaterLevelFromFullState(state){
   return {known:false, value:null, safeBelowCargo:true};
 }
 
+function totalIngressSeverityFromFullState(state){
+  const overMinimum = Number(state.activeLeaks || 0);
+  if (overMinimum <= 0) return 'good';
+  if (overMinimum === 1) return 'warn';
+  return 'danger';
+}
+
 // Rebuild player-facing active effects from the full state fallback.
 function publicEffectsFromFullState(state){
   const conditions = (state.conditions || [])
@@ -149,26 +158,28 @@ function render(){
     return;
   }
   q('playerTurn').innerHTML = turnChips(state.day, state.turn);
-  q('playerTravel').innerHTML = `<div class="score-label">Days</div><div class="score-value">${escapeHtml(stateValue(state.travel, value => formatNumber(value)))}</div>`;
+  q('playerTravel').innerHTML = travelCardContent(state.travel);
+  q('playerCourseState').className = `player-card player-course-card ${courseStateClass(state.courseState)}`;
+  q('playerCourseState').innerHTML = courseStateCardContent(state.courseState);
   q('playerUpdated').textContent = `Updated ${formatTime(state.updatedAt)}`;
   q('playerShipStats').innerHTML = [
     waterMeterCard(state.waterLevel),
     `<div class="player-ship-substats">
-      ${statCard('Active Leaks', state.activeLeaks, Number(state.activeLeaks) ? 'warn' : 'good')}
-      ${statCard('Total Ingress', stateValue(state.totalIngress), 'unknown')}
+      ${statCard('Active Leaks', state.activeLeaks, activeLeaksClass(state.activeLeaks))}
+      ${statCard('Total Ingress', stateValue(state.totalIngress), knownClass(state.totalIngress, value => state.totalIngressSeverity || ingressClass(value)))}
     </div>`
   ].join('');
   q('playerSupplies').innerHTML = [
     statCard('Food', stateValue(state.food), knownClass(state.food, value => Number(value) <= 1 ? 'danger' : 'good')),
     statCard('Water', stateValue(state.freshWater), knownClass(state.freshWater, value => Number(value) <= 1 ? 'danger' : 'good')),
-    statCard('Repairs', stateValue(state.repairMaterials), knownClass(state.repairMaterials, value => Number(value) <= 1 ? 'warn' : 'good'))
+    statCard('Repairs', stateValue(state.repairMaterials), knownClass(state.repairMaterials, value => Number(value) <= 1 ? 'danger' : 'good'))
   ].join('');
   q('playerSystems').innerHTML = [
-    statCard('Mast', state.systems.mast, systemClass(state.systems.mast)),
-    statCard('Rudder', state.systems.rudder, systemClass(state.systems.rudder)),
-    statCard('Pump', state.systems.pump, systemClass(state.systems.pump)),
-    statCard('Net', state.systems.net, systemClass(state.systems.net)),
-    statCard('Rigging', state.systems.rigging, systemClass(state.systems.rigging))
+    systemCard('Mast', state.systems.mast),
+    systemCard('Rudder', state.systems.rudder),
+    systemCard('Pump', state.systems.pump),
+    systemCard('Net', state.systems.net),
+    systemCard('Rigging', state.systems.rigging)
   ].join('');
   renderEffects(state.effects || []);
   renderCrew(state.crew || []);
@@ -176,7 +187,9 @@ function render(){
 
 function renderEmpty(){
   q('playerTurn').innerHTML = turnChips('--', '--');
-  q('playerTravel').innerHTML = '<div class="score-label">Days</div><div class="score-value">--</div>';
+  q('playerTravel').innerHTML = travelCardContent(null);
+  q('playerCourseState').className = 'player-card player-course-card unknown';
+  q('playerCourseState').innerHTML = courseStateCardContent(null);
   q('playerUpdated').textContent = 'No tracker data found';
   ['playerShipStats','playerSupplies','playerSystems','playerEffects','playerCrew'].forEach(id => {
     q(id).innerHTML = '<span class="pill">Waiting for DM tracker...</span>';
@@ -188,6 +201,28 @@ function statCard(label, value, className = ''){
     <div class="score-label">${escapeHtml(label)}</div>
     <div class="score-value">${escapeHtml(String(value ?? '--'))}</div>
   </div>`;
+}
+
+function systemCard(label, status){
+  const displayStatus = systemDisplayStatus(status, label);
+  const fullStatus = status || displayStatus;
+  return `<div class="player-card player-system-card ${systemClass(status)}" title="${escapeHtml(label)}: ${escapeHtml(fullStatus)}" aria-label="${escapeHtml(label)}: ${escapeHtml(fullStatus)}">
+    <div class="score-label">${escapeHtml(label)}</div>
+    <div class="score-value">${escapeHtml(displayStatus)}</div>
+  </div>`;
+}
+
+function systemDisplayStatus(status, label = ''){
+  if (label === 'Rigging' && status === 'Broken') return 'Snapped';
+  return {
+    Working: 'OK',
+    Repaired: 'OK',
+    Ready: 'OK',
+    Intact: 'OK',
+    Broken: 'Broken',
+    Jammed: 'Jammed',
+    Tangled: 'Tangled'
+  }[status] || status || '--';
 }
 
 function turnChips(day, turn){
@@ -217,16 +252,15 @@ function waterMeterCard(field){
           <div class="water-fill-value">${escapeHtml(displayValue)}</div>
           <div class="water-fill-detail">${escapeHtml(detail)}</div>
         </div>`}
-        <div class="water-fill" style="height:${percentage}%">
-          <div class="water-fill-readout${known ? '' : ' hidden'}" style="${dangerColor ? `--water-text-color:${dangerColor}` : ''}">
-            <div class="water-fill-value">${escapeHtml(displayValue)}</div>
-            <div class="water-fill-detail">${escapeHtml(detail)}</div>
-          </div>
-        </div>
+        <div class="water-fill" style="height:${percentage}%"></div>
         ${waterMarker(5, 'Cargo Hold')}
         ${waterMarker(10, 'Waist Deep')}
         ${waterMarker(15, 'Neck Deep')}
         ${waterMarker(20, 'Sunk')}
+        <div class="water-fill-readout${known ? '' : ' hidden'}" style="${dangerColor ? `--water-text-color:${dangerColor}` : ''}">
+          <div class="water-fill-value">${escapeHtml(displayValue)}</div>
+          <div class="water-fill-detail">${escapeHtml(detail)}</div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -305,17 +339,67 @@ function actionLabel(actionName){
   return action?.playerLabel || action?.name || actionName || 'No action selected';
 }
 
+function travelCardContent(travel){
+  const travelText = travel && typeof travel === 'object' && 'known' in travel
+    ? stateValue(travel, formatPlayerTravelDays)
+    : '--';
+  return `<div class="score-label">Days</div>
+    <div class="score-value">${escapeHtml(travelText)}</div>`;
+}
+
+function formatPlayerTravelDays(value){
+  return formatNumber(Math.round(Number(value || 0) * 2) / 2);
+}
+
+function courseStateCardContent(courseState){
+  const courseText = courseState && typeof courseState === 'object' && 'known' in courseState
+    ? stateValue(courseState, playerCourseLabel)
+    : '?';
+  return `<div class="score-label">Course</div>
+    <div class="score-value">${escapeHtml(courseText)}</div>`;
+}
+
+function playerCourseLabel(value){
+  return {
+    'True Course': 'True',
+    Drifting: 'Drifting',
+    'Off Course': 'Off',
+    Lost: 'Lost'
+  }[value] || value || '?';
+}
+
+function courseStateClass(courseState){
+  if (!courseState || typeof courseState !== 'object' || !('known' in courseState)) return 'unknown';
+  if (!courseState.known) return 'unknown';
+  if (courseState.value === 'True Course') return 'good';
+  if (courseState.value === 'Off Course' || courseState.value === 'Lost') return 'danger';
+  return '';
+}
+
+function ingressClass(value){
+  const total = Number(value || 0);
+  if (total <= 1) return 'good';
+  if (total === 2) return 'warn';
+  return 'danger';
+}
+
+function activeLeaksClass(value){
+  const leaks = Number(value || 0);
+  if (leaks <= 0) return 'good';
+  if (leaks <= 2) return 'warn';
+  return 'danger';
+}
+
 function effectLabel(effectName){
   return PLAYER_EFFECT_LABELS[effectName] || effectName || 'Active Effect';
 }
 function waterClass(level){
   if (level && typeof level === 'object' && 'known' in level) {
-    if (!level.known) return 'unknown';
+    if (!level.known) return level.safeBelowCargo ? 'good' : 'unknown';
     return waterClass(level.value);
   }
   const value = Number(level);
-  if (value >= 15) return 'danger';
-  if (value >= 5) return 'warn';
+  if (value >= 5) return 'danger';
   return 'good';
 }
 
