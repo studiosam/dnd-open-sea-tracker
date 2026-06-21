@@ -14,27 +14,46 @@
       class="landing-screen"
       aria-label="Open Sea Tracker startup"
     ></section>
-    <!-- Global controls for undo, persistence, export, and reset. -->
-    <header>
-      <h1 id="trackerTitle">The Marrowwind Tracker</h1>
-      <div class="actions">
-        <button id="undoButton" data-action="undo-last-change" disabled>Undo</button>
-        <button class="primary" data-action="save-state">Save</button>
-        <button data-action="load-state">Load</button>
-        <button data-action="export-state">Export</button>
-        <button data-action="choose-import-file">Import</button>
-        <a class="button-link" href="player_view.html" target="_blank" rel="noopener"
-          >Open Player View</a
+    <!-- Global controls for navigation, undo, persistence, export, and reset. -->
+    <header class="dm-header">
+      <div class="dm-header-title">
+        <h1 id="trackerTitle">The Marrowwind Tracker</h1>
+      </div>
+      <nav class="dm-header-actions" aria-label="DM tracker controls">
+        <div
+          class="header-action-group navigation-actions"
+          role="group"
+          aria-label="Navigation controls"
         >
+          <button data-action="return-to-landing">Main Menu</button>
+          <a class="button-link" href="player_view.html" target="_blank" rel="noopener"
+            >Open Player View</a
+          >
+        </div>
+        <details class="header-menu">
+          <summary>Voyage Menu</summary>
+          <div class="header-menu-panel">
+            <button id="undoButton" data-action="undo-last-change" disabled>Undo</button>
+            <button class="primary" data-action="save-state">Save</button>
+            <button data-action="load-state">Load</button>
+            <button data-action="export-state">Export</button>
+            <button data-action="choose-import-file">Import</button>
+            <button class="danger" data-action="reset-state">Reset</button>
+          </div>
+        </details>
         <input
           id="importFile"
           type="file"
           accept="application/json,.json"
           class="hidden-file-input"
         />
-        <button class="danger" data-action="reset-state">Reset</button>
-      </div>
+      </nav>
     </header>
+    <section
+      id="demoModeBanner"
+      class="demo-mode-banner hidden"
+      aria-label="Demo mode notice"
+    ></section>
     <!-- Always-visible GM summary and quick manual overrides. -->
     <section id="scoreboardPanel" class="scoreboard-panel" aria-label="DM scoreboard">
       <div class="scoreboard-header">

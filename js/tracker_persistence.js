@@ -52,11 +52,26 @@ const IMPORT_PROMPT_TYPES = ['manual', 'check', 'save'];
 const IMPORT_PROMPT_STATUSES = ['pending', 'resolved'];
 const IMPORT_WORK_STATUSES = ['active', 'pending', 'resolved', 'cancelled'];
 const IMPORT_TEXT_MAX_LENGTH = 5000;
+const DEMO_SAVE_CONFIRMATION =
+  'Save this demo voyage as your current saved voyage? This will replace the saved voyage in this browser.';
 function saveState() {
   syncFromInputs();
+  if (state.demoMode) {
+    if (!confirm(DEMO_SAVE_CONFIRMATION)) {
+      render();
+      return false;
+    }
+    state.demoMode = false;
+    log('Demo voyage saved as a real voyage.');
+    saveStateSnapshot();
+    publishPlayerState();
+    render();
+    return true;
+  }
   saveStateSnapshot();
   log('Saved the tracker state.');
   render();
+  return true;
 }
 
 // Browser export creates a portable backup file in the user's normal download location.
@@ -165,6 +180,7 @@ function normalizeImportedState(importedState) {
   try {
     migrateState();
     validateMigratedImportState(state);
+    state.demoMode = false;
     return structuredClone(state);
   } finally {
     state = previousState;
@@ -228,6 +244,7 @@ function validateImportedStatePayload(importedState) {
     maxLength: SHIP_NAME_MAX_LENGTH
   });
   validateImportedBoolean(importedState.setupComplete, 'Setup complete flag', errors);
+  validateImportedBoolean(importedState.demoMode, 'Demo mode flag', errors);
   if (errors.length) {
     throw new Error(`Import validation failed: ${errors.slice(0, 5).join(' ')}`);
   }
@@ -649,10 +666,12 @@ function validateImportedStartedGroups(startedGroups, errors) {
 }
 
 function saveStateSnapshot() {
+  if (state.demoMode) return false;
   state.version = APP_VERSION;
   state.shipName = normalizedShipName(state.shipName);
   syncTravelDaysFromTicks();
   localStorage.setItem('openSeaTracker', JSON.stringify(state));
+  return true;
 }
 
 // Publish a filtered state object for player_view.html.
@@ -1257,6 +1276,7 @@ function migrateState() {
   state = { ...structuredClone(defaultState), ...incomingState };
   state.version = APP_VERSION;
   state.setupComplete = state.setupComplete !== false;
+  state.demoMode = Boolean(state.demoMode);
   state.shipName = normalizedShipName(state.shipName);
   const parsedTravelTicks = Number(state.travelTicks);
   state.travelTicks =
@@ -1370,6 +1390,7 @@ function log(message) {
 function fieldLabel(field) {
   const labels = {
     day: 'Day',
+    demoMode: 'Demo Mode',
     shipName: 'Ship Name',
     turn: 'Turn',
     travel: 'Travel Remaining',

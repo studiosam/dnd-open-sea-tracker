@@ -9,9 +9,30 @@ function startNewVoyage() {
   render();
 }
 
+function loadDemoVoyage() {
+  undoStack = [];
+  clearActionCommitSnapshot();
+  state = createDemoTrackerState();
+  migrateState();
+  enterTrackerMode();
+  publishPlayerState();
+  render();
+  return true;
+}
+
 function backToLanding() {
   appMode = 'landing';
   render();
+}
+
+function returnToLanding() {
+  if (appMode === 'tracker') {
+    syncFromInputs();
+    if (!state.demoMode) saveStateSnapshot();
+  }
+  appMode = 'landing';
+  render();
+  return true;
 }
 
 function resetSetupDefaults() {
@@ -68,11 +89,29 @@ function createTrackerStateFromSetup(draft) {
   }));
   nextState.version = APP_VERSION;
   nextState.setupComplete = true;
+  nextState.demoMode = false;
   nextState.shipName = normalizedDraft.shipName;
   nextState.crew = crew;
   nextState.plannedActions = {};
   nextState.confirmedActions = {};
   nextState.overtimeExhaustion = Object.fromEntries(crew.map((character) => [character.name, 0]));
+  return nextState;
+}
+
+function createDemoTrackerState() {
+  const nextState = structuredClone(defaultState);
+  nextState.version = APP_VERSION;
+  nextState.setupComplete = true;
+  nextState.demoMode = true;
+  nextState.shipName = DEFAULT_SHIP_NAME;
+  nextState.crew = crewNames.map((name, index) => defaultCrewMember(index, name));
+  nextState.plannedActions = {};
+  nextState.confirmedActions = {};
+  nextState.salvageLumberBelowDeck = {};
+  nextState.overtimeExhaustion = Object.fromEntries(
+    nextState.crew.map((character) => [character.name, 0])
+  );
+  nextState.log = `Day ${nextState.day}, Turn ${nextState.turn}: Demo voyage loaded.\n`;
   return nextState;
 }
 

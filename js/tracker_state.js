@@ -1,5 +1,5 @@
 // Shared tracker state, rule tables, and low-level rule helpers.
-const APP_VERSION = 9;
+const APP_VERSION = 10;
 const PLAYER_STATE_KEY = 'openSeaPlayerState';
 const ACTION_COMMIT_SNAPSHOT_KEY = 'openSeaActionCommitSnapshot';
 const DEFAULT_SHIP_NAME = 'The Marrowwind';
@@ -27,6 +27,7 @@ const SETUP_CREW_TRAIT_FIELDS = [
 const defaultState = {
   version: APP_VERSION,
   setupComplete: true,
+  demoMode: false,
   shipName: DEFAULT_SHIP_NAME,
   day: 1,
   turn: 1,

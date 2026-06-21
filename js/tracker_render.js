@@ -39,6 +39,7 @@ function render() {
   if (typeof document !== 'undefined') document.body?.classList.remove('landing-active');
   migrateState();
   renderShipName();
+  renderDemoModeBanner();
   pruneUnavailablePlannedActions();
   syncTravelDaysFromTicks();
   [
@@ -81,6 +82,23 @@ function render() {
 function renderShipName() {
   const title = q('trackerTitle');
   if (title) title.textContent = `${normalizedShipName(state.shipName)} Tracker`;
+}
+
+function demoModeBannerMarkup(currentState = state) {
+  if (!currentState?.demoMode) return '';
+  return 'Demo Mode — changes are temporary unless you save this voyage.';
+}
+
+function renderDemoModeBanner() {
+  const banner = q('demoModeBanner');
+  const active = Boolean(state.demoMode);
+  if (typeof document !== 'undefined') {
+    document.body?.classList.toggle('demo-mode-active', active);
+  }
+  if (!banner) return;
+  const markup = demoModeBannerMarkup();
+  banner.textContent = markup;
+  banner.classList.toggle('hidden', !markup);
 }
 
 function waterScoreClass() {

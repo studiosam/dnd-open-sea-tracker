@@ -2,7 +2,10 @@
 function renderLandingScreen() {
   const landing = q('landingScreen');
   if (!landing) return;
-  if (typeof document !== 'undefined') document.body?.classList.add('landing-active');
+  if (typeof document !== 'undefined') {
+    document.body?.classList.add('landing-active');
+    document.body?.classList.remove('demo-mode-active');
+  }
   landing.innerHTML = landingScreenMarkup(Boolean(readSavedVoyageState()));
 }
 
@@ -37,9 +40,9 @@ function landingScreenMarkup(hasSavedVoyage) {
           <span>Import Saved Voyage</span>
           <small>Load a previously exported tracker JSON file.</small>
         </button>
-        <button class="landing-action-button" type="button" disabled>
+        <button class="landing-action-button" type="button" data-action="load-demo-voyage">
           <span>Load Demo Voyage</span>
-          <small>Demo mode coming soon.</small>
+          <small>Try the default Marrowwind voyage without replacing your saved voyage.</small>
         </button>
       </div>
       <div class="landing-note">
@@ -52,7 +55,10 @@ function landingScreenMarkup(hasSavedVoyage) {
 function renderSetupScreen() {
   const landing = q('landingScreen');
   if (!landing) return;
-  if (typeof document !== 'undefined') document.body?.classList.add('landing-active');
+  if (typeof document !== 'undefined') {
+    document.body?.classList.add('landing-active');
+    document.body?.classList.remove('demo-mode-active');
+  }
   landing.innerHTML = setupScreenMarkup(setupDraftForRender(), Boolean(readSavedVoyageState()));
 }
 

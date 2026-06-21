@@ -302,7 +302,7 @@ test('import normalization migrates compatible old saves', () => {
       crewSize: imported.crew.length
     };
   })()`);
-  assert.equal(result.version, 9);
+  assert.equal(result.version, 10);
   assert.equal(result.travelTicks, 38);
   assert.equal(result.travel, 4.75);
   assert.equal(result.mastStatus, 'Repaired');
@@ -339,25 +339,190 @@ test('landing screen exposes startup actions safely', () => {
   assert.match(result.noSave, /data-action="resume-current-voyage" disabled/);
   assert.match(result.noSave, /No saved voyage found in this browser/);
   assert.match(result.noSave, /data-action="import-saved-voyage"/);
+  assert.match(result.noSave, /Load Demo Voyage/);
+  assert.match(result.noSave, /data-action="load-demo-voyage"/);
   assert.doesNotMatch(result.noSave, /Open Player View/);
   assert.doesNotMatch(result.withSave, /data-action="resume-current-voyage" disabled/);
   assert.match(result.withSave, /A saved voyage is available in this browser/);
 });
 
-test('dm tracker header exposes player view link', () => {
+test('dm tracker header exposes navigation controls', () => {
   const html = readProjectFile('open_sea_tracker.html');
+  assert.match(html, /data-action="return-to-landing"/);
+  assert.match(html, /Main Menu/);
+  assert.match(html, /class="dm-header-actions"/);
+  assert.match(html, /class="header-menu"/);
+  assert.match(html, /Voyage Menu/);
+  [
+    'undo-last-change',
+    'save-state',
+    'load-state',
+    'export-state',
+    'choose-import-file',
+    'reset-state'
+  ].forEach((action) => assert.match(html, new RegExp(`data-action="${action}"`)));
   assert.match(html, /Open Player View/);
   assert.match(html, /href="player_view\.html"/);
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="noopener"/);
 });
 
+test('load demo voyage enters tracker mode without saving', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const existingSave = {...defaultState, day: 9, shipName: 'Real Saved Ship'};
+    localStorage.setItem('openSeaTracker', JSON.stringify(existingSave));
+    render = () => {};
+    appMode = 'landing';
+    const loaded = loadDemoVoyage();
+    const saved = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const published = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      loaded,
+      appMode,
+      demoMode: state.demoMode,
+      setupComplete: state.setupComplete,
+      shipName: state.shipName,
+      crewNames: state.crew.map((character) => character.name),
+      savedShipName: saved.shipName,
+      savedDay: saved.day,
+      publishedShipName: published.shipName,
+      publishedCrewNames: published.crew.map((character) => character.name),
+      log: state.log
+    };
+  })()`);
+
+  assert.equal(result.loaded, true);
+  assert.equal(result.appMode, 'tracker');
+  assert.equal(result.demoMode, true);
+  assert.equal(result.setupComplete, true);
+  assert.equal(result.shipName, 'The Marrowwind');
+  assert.deepEqual(result.crewNames, ['Leopold', 'Delilah', 'Toady', 'Xander', 'Grumbo', 'Tommy']);
+  assert.equal(result.savedShipName, 'Real Saved Ship');
+  assert.equal(result.savedDay, 9);
+  assert.equal(result.publishedShipName, 'The Marrowwind');
+  assert.deepEqual(result.publishedCrewNames, [
+    'Leopold',
+    'Delilah',
+    'Toady',
+    'Xander',
+    'Grumbo',
+    'Tommy'
+  ]);
+  assert.match(result.log, /Demo voyage loaded/);
+});
+
+test('load demo voyage without an existing save leaves the save slot empty', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    render = () => {};
+    loadDemoVoyage();
+    return {
+      saved: localStorage.getItem('openSeaTracker'),
+      published: Boolean(localStorage.getItem(PLAYER_STATE_KEY)),
+      demoMode: state.demoMode
+    };
+  })()`);
+
+  assert.equal(result.saved, null);
+  assert.equal(result.published, true);
+  assert.equal(result.demoMode, true);
+});
+
+test('resume after unsaved demo keeps the original saved voyage', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    localStorage.setItem('openSeaTracker', JSON.stringify({...defaultState, day: 6, shipName: 'Original Save'}));
+    render = () => {};
+    loadDemoVoyage();
+    state.day = 12;
+    state.shipName = 'Temporary Demo';
+    resumeCurrentVoyage();
+    return {
+      appMode,
+      demoMode: state.demoMode,
+      day: state.day,
+      shipName: state.shipName,
+      saved: JSON.parse(localStorage.getItem('openSeaTracker'))
+    };
+  })()`);
+
+  assert.equal(result.appMode, 'tracker');
+  assert.equal(result.demoMode, false);
+  assert.equal(result.day, 6);
+  assert.equal(result.shipName, 'Original Save');
+  assert.equal(result.saved.shipName, 'Original Save');
+  assert.equal(result.saved.day, 6);
+});
+
+test('main menu return preserves real saves and does not save demos', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    render = () => {};
+    syncFromInputs = () => {};
+    appMode = 'tracker';
+    state = {...structuredClone(defaultState), shipName: 'Current Real Voyage', day: 3};
+    const realReturned = returnToLanding();
+    const realSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    localStorage.setItem('openSeaTracker', JSON.stringify({...defaultState, shipName: 'Protected Save', day: 8}));
+    appMode = 'tracker';
+    state = createDemoTrackerState();
+    state.shipName = 'Unsaved Demo Voyage';
+    state.day = 12;
+    const demoReturned = returnToLanding();
+    const demoSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    return {
+      realReturned,
+      realMode: appMode,
+      realSaveShipName: realSave.shipName,
+      realSaveDay: realSave.day,
+      demoReturned,
+      demoMode: appMode,
+      demoSaveShipName: demoSave.shipName,
+      demoSaveDay: demoSave.day
+    };
+  })()`);
+
+  assert.equal(result.realReturned, true);
+  assert.equal(result.realMode, 'landing');
+  assert.equal(result.realSaveShipName, 'Current Real Voyage');
+  assert.equal(result.realSaveDay, 3);
+  assert.equal(result.demoReturned, true);
+  assert.equal(result.demoMode, 'landing');
+  assert.equal(result.demoSaveShipName, 'Protected Save');
+  assert.equal(result.demoSaveDay, 8);
+});
+
+test('dm tracker demo banner only renders for demo mode', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => ({
+    demo: demoModeBannerMarkup({...defaultState, demoMode: true}),
+    real: demoModeBannerMarkup({...defaultState, demoMode: false})
+  }))()`);
+
+  assert.match(result.demo, /Demo Mode/);
+  assert.match(result.demo, /temporary unless you save this voyage/);
+  assert.equal(result.real, '');
+});
+
 test('old saves migrate as setup complete', () => {
   const tracker = loadTrackerContext();
-  const setupComplete = tracker.evaluate(`
-    normalizeImportedState({ crew: structuredClone(defaultState.crew) }).setupComplete
-  `);
-  assert.equal(setupComplete, true);
+  const result = tracker.evaluate(`(() => {
+    const oldSave = normalizeImportedState({ crew: structuredClone(defaultState.crew) });
+    const exportedDemo = normalizeImportedState({
+      ...defaultState,
+      demoMode: true,
+      crew: structuredClone(defaultState.crew)
+    });
+    return {
+      setupComplete: oldSave.setupComplete,
+      oldDemoMode: oldSave.demoMode,
+      importedDemoMode: exportedDemo.demoMode
+    };
+  })()`);
+  assert.equal(result.setupComplete, true);
+  assert.equal(result.oldDemoMode, false);
+  assert.equal(result.importedDemoMode, false);
 });
 
 test('dm header renders the ship name', () => {
@@ -738,6 +903,69 @@ test('existing save confirmation controls setup overwrite', () => {
   assert.match(result.confirmMessage, /replace the saved voyage/);
   assert.equal(result.confirmedSaveShipName, 'Confirmed Ship');
   assert.equal(result.confirmedPlayerShipName, 'Confirmed Ship');
+});
+
+test('demo save confirmation controls conversion to real save', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const oldSave = {...defaultState, day: 4, shipName: 'Protected Save'};
+    localStorage.setItem('openSeaTracker', JSON.stringify(oldSave));
+    syncFromInputs = () => {};
+    render = () => {};
+    loadDemoVoyage();
+    state.day = 8;
+    state.shipName = 'Demo Ship';
+    let cancelConfirmMessage = '';
+    confirm = (message) => {
+      cancelConfirmMessage = message;
+      return false;
+    };
+    const cancelled = saveState();
+    const cancelledSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const cancelledDemoMode = state.demoMode;
+    const cancelledBanner = demoModeBannerMarkup();
+    let confirmMessage = '';
+    confirm = (message) => {
+      confirmMessage = message;
+      return true;
+    };
+    const confirmed = saveState();
+    const confirmedSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const confirmedPlayer = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      cancelled,
+      cancelConfirmMessage,
+      cancelledSaveShipName: cancelledSave.shipName,
+      cancelledSaveDay: cancelledSave.day,
+      cancelledDemoMode,
+      cancelledBanner,
+      confirmed,
+      confirmMessage,
+      stateDemoMode: state.demoMode,
+      confirmedSaveShipName: confirmedSave.shipName,
+      confirmedSaveDay: confirmedSave.day,
+      confirmedSaveDemoMode: confirmedSave.demoMode,
+      confirmedPlayerShipName: confirmedPlayer.shipName,
+      bannerAfterSave: demoModeBannerMarkup(),
+      log: state.log
+    };
+  })()`);
+
+  assert.equal(result.cancelled, false);
+  assert.match(result.cancelConfirmMessage, /Save this demo voyage as your current saved voyage/);
+  assert.equal(result.cancelledSaveShipName, 'Protected Save');
+  assert.equal(result.cancelledSaveDay, 4);
+  assert.equal(result.cancelledDemoMode, true);
+  assert.match(result.cancelledBanner, /Demo Mode/);
+  assert.equal(result.confirmed, true);
+  assert.match(result.confirmMessage, /replace the saved voyage/);
+  assert.equal(result.stateDemoMode, false);
+  assert.equal(result.confirmedSaveShipName, 'Demo Ship');
+  assert.equal(result.confirmedSaveDay, 8);
+  assert.equal(result.confirmedSaveDemoMode, false);
+  assert.equal(result.confirmedPlayerShipName, 'Demo Ship');
+  assert.equal(result.bannerAfterSave, '');
+  assert.match(result.log, /Demo voyage saved as a real voyage/);
 });
 
 test('setup crew size supports four through seven players', () => {

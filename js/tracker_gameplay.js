@@ -1490,12 +1490,17 @@ function handleDelegatedClick(event) {
   const control = event.target?.closest?.('[data-action]');
   if (!control || control.disabled) return;
   event.preventDefault();
+  control.closest?.('.header-menu')?.removeAttribute('open');
   const action = control.dataset.action;
   const amount = () => Number(control.dataset.amount || 0);
   const index = () => Number(control.dataset.index || 0);
   switch (action) {
     case 'start-new-voyage':
       return startNewVoyage();
+    case 'load-demo-voyage':
+      return loadDemoVoyage();
+    case 'return-to-landing':
+      return returnToLanding();
     case 'back-to-landing':
       return backToLanding();
     case 'reset-setup-defaults':
