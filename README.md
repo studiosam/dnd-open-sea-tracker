@@ -2,7 +2,7 @@
 
 A browser-based tracker for running dangerous open sea voyage rules.
 
-The DM screen manages turn flow, actions, checks, water, supplies, ship systems, hidden state, saving, importing, and scripted events. The player screen shows only player-facing information and updates automatically from the DM screen.
+The DM screen manages startup, setup, turn flow, actions, checks, water, supplies, ship systems, hidden state, saving, importing, and scripted events. The player screen shows only player-facing information and updates automatically from the DM screen.
 
 This project is currently built around the Marrowwind voyage, but the long-term goal is to move toward a more reusable open sea encounter tracker.
 
@@ -17,6 +17,13 @@ Current features include:
 - DM-facing tracker screen
 - Player-facing display screen
 - Startup landing screen
+- New voyage setup screen
+- Configurable ship name
+- Configurable crew size
+- Configurable crew names
+- Configurable crew background/proficiency traits
+- Setup validation
+- Save-overwrite protection
 - Resume current browser save
 - Import exported voyage saves
 - Turn-flow guidance
@@ -45,15 +52,25 @@ Open:
 open_sea_tracker.html
 ```
 
-The DM screen now opens to a startup landing screen.
+The DM screen opens to a startup landing screen.
 
 Choose one of the startup actions:
 
-- **Start a New Voyage**: begins a new default voyage.
+- **Start a New Voyage**: opens the setup screen.
 - **Resume Current Voyage**: resumes the saved voyage stored in this browser.
 - **Import Saved Voyage**: imports a previously exported tracker `.json` file.
 
 If no saved voyage exists in the current browser profile, **Resume Current Voyage** should be unavailable.
+
+To start a new voyage:
+
+1. Click **Start a New Voyage**.
+2. Configure the voyage preset, ship name, crew size, crew names, and crew traits.
+3. Fix any setup validation errors.
+4. Click **Start Voyage**.
+5. If an existing save is present, confirm that you want to replace it.
+
+**Start Voyage** creates the tracker state, saves it to browser storage, publishes the player-safe state, and enters the tracker screen.
 
 ## Player Screen
 
@@ -90,10 +107,12 @@ No server or build step is required. The app can be opened directly in a browser
 ## JavaScript
 
 - `js/action_metadata.js` - shared action definitions and action metadata.
-- `js/tracker_state.js` - shared DM tracker state, rule tables, scripted events, and low-level rule helpers.
-- `js/tracker_render.js` - DM screen rendering and UI view helpers.
+- `js/tracker_state.js` - shared DM tracker state, rule tables, scripted events, setup defaults, validation constants, and low-level rule helpers.
+- `js/tracker_render_setup.js` - landing screen and setup screen rendering.
+- `js/tracker_render.js` - main DM render dispatcher and tracker-screen rendering.
 - `js/tracker_gameplay.js` - DM actions, prompts, turn flow, event handlers, meals, and overtime handlers.
-- `js/tracker_persistence.js` - save/load, player-state publishing, validation, migration, and labels.
+- `js/tracker_persistence.js` - save/load, player-state publishing, validation, migration, import/export, and labels.
+- `js/tracker_setup.js` - setup-mode behavior and setup-to-state creation.
 - `js/tracker.js` - small DM tracker bootstrap loaded after the support scripts.
 - `js/player_view.js` - player screen rendering and sync logic.
 
@@ -104,7 +123,7 @@ No server or build step is required. The app can be opened directly in a browser
 
 ## Tests and Tooling
 
-- `tests/` - Node test suite for tracker rules, import validation, event binding coverage, player view behavior, and startup behavior.
+- `tests/` - Node test suite for tracker rules, import validation, event binding coverage, setup flow, save-overwrite protection, player view behavior, and startup behavior.
 - `package.json` - npm scripts for formatting, syntax checks, CI, and tests.
 - `.github/workflows/ci.yml` - GitHub Actions workflow.
 - `.prettierrc` - Prettier formatting configuration.
@@ -174,11 +193,17 @@ The formal test suite loads the browser scripts in a Node VM and checks:
 - Unsafe import rejection
 - Out-of-range import rejection
 - Malformed nested import rejection
+- Ship-name migration and validation
 - Pending prompt escaping
 - Delegated event-handler coverage
 - Startup landing screen behavior
+- Setup screen behavior
+- Setup validation
+- Setup-created tracker state
+- Save-overwrite protection
 - Old save migration
 - New voyage creation
+- Setup-created player state
 - Player travel rounding
 - Navigate reveal behavior
 - Water visibility behavior
@@ -191,7 +216,7 @@ The browser behavior checklist is in:
 docs/MANUAL_TESTING.md
 ```
 
-Run the manual checklist after changes that affect rendering, buttons, turn flow, player view publishing, import/export, localStorage, startup behavior, or major layout.
+Run the manual checklist after changes that affect rendering, buttons, turn flow, player view publishing, import/export, localStorage, startup behavior, setup behavior, or major layout.
 
 ---
 
@@ -203,9 +228,11 @@ Startup actions:
 
 ## Start a New Voyage
 
-Starts a fresh default voyage.
+Opens the setup screen.
 
-If a saved voyage already exists, the app should confirm before replacing it.
+Opening setup does not overwrite an existing save. Setup changes stay temporary until **Start Voyage** is clicked.
+
+If a saved voyage already exists, the app asks for confirmation before **Start Voyage** replaces it.
 
 ## Resume Current Voyage
 
@@ -222,6 +249,51 @@ The import uses validation and migration before replacing the current state.
 ## Demo Mode
 
 Demo mode is planned but not part of the current core flow unless implemented in the app.
+
+---
+
+# New Voyage Setup
+
+**Start a New Voyage** opens a setup screen before the tracker state is created.
+
+Setup fields:
+
+- Voyage preset
+- Ship name
+- Crew size
+- Crew names
+- Sailor/Pirate
+- Fisherman
+- Water Vehicles
+- Navigator's Tools
+- Cartographer's Tools
+
+Setup validation:
+
+- Ship name is required.
+- Ship name must stay within the configured maximum length.
+- Active crew names are required.
+- Active crew names must stay within the configured maximum length.
+- Active crew names must be unique after trimming.
+- Duplicate crew-name detection is case-insensitive.
+- Inactive crew rows do not block setup validation.
+
+Setup behavior:
+
+- Editing setup fields does not save or publish anything.
+- **Back to Landing** does not overwrite the current save.
+- **Reset Setup Defaults** resets only the temporary setup draft.
+- **Start Voyage** validates the setup.
+- Invalid setup stays on the setup screen and shows errors.
+- Valid setup creates the tracker state, saves it, publishes player state, and enters tracker mode.
+- If an existing save is present, the app asks before replacing it.
+- Cancelling the overwrite confirmation preserves the existing saved voyage and the existing published player state.
+
+Crew traits affect existing advantage prompt text:
+
+- Sailor/Pirate and Water Vehicles apply to Helm guidance.
+- Navigator's Tools and Cartographer's Tools apply to Navigate / Study Map guidance.
+- Fisherman applies to fishing guidance.
 
 ---
 
@@ -367,6 +439,7 @@ The player screen should not show DM-only information such as Minimum Ingress.
 
 The player screen displays:
 
+- Ship name
 - Voyage day and turn
 - Travel remaining, if known
 - Water level meter
@@ -430,13 +503,17 @@ The tracker uses browser `localStorage`.
 
 Important behavior:
 
-- Use `Resume Current Voyage` on the landing screen to resume the saved browser state.
-- Use `Save` on the DM screen to manually save the full tracker state.
-- Use `Export` to download the current tracker state as a `.json` backup file.
-- Use `Import` or `Import Saved Voyage` to restore a previously exported `.json` backup file.
-- Use `Undo` to restore the state from before the last meaningful change.
+- Setup draft changes are temporary and are not saved automatically.
+- **Start Voyage** is the point where a setup-created voyage is saved and published.
+- If an existing save is present, **Start Voyage** asks before replacing it.
+- **Back to Landing** and **Reset Setup Defaults** do not replace the current save.
+- Use **Resume Current Voyage** on the landing screen to resume the saved browser state.
+- Use **Save** on the DM screen to manually save the full tracker state.
+- Use **Export** to download the current tracker state as a `.json` backup file.
+- Use **Import** or **Import Saved Voyage** to restore a previously exported `.json` backup file.
+- Use **Undo** to restore the state from before the last meaningful change.
 - The app keeps the 20 most recent undo snapshots for the current page session.
-- Use `Reset` only when you want to start over.
+- Use **Reset** only when you want to start over.
 
 Important:
 
@@ -457,6 +534,7 @@ The activity log appears at the bottom of the DM page.
 It records human-readable events such as:
 
 - Startup/resume/import activity
+- New voyage creation
 - Confirmed actions
 - Labor changes
 - Repairs completed
@@ -482,6 +560,9 @@ The manual checklist covers browser behavior that the automated tests do not ful
 - DM screen loading
 - Player screen loading
 - Startup landing screen behavior
+- New voyage setup behavior
+- Setup validation
+- Save-overwrite protection
 - Turn flow
 - Action assignment
 - Navigate reveal behavior
@@ -512,6 +593,18 @@ Refresh the player screen once if needed.
 No saved voyage was found in the current browser profile.
 
 Start a new voyage or import an exported save.
+
+## Start Voyage is disabled
+
+The setup form has validation errors.
+
+Check the setup error message, then confirm that the ship name is valid and all active crew names are valid and unique.
+
+## My existing save was not replaced after backing out of setup
+
+That is intended.
+
+Opening setup, editing setup fields, using **Reset Setup Defaults**, and clicking **Back to Landing** do not overwrite saved data. The existing save is only replaced by a valid **Start Voyage** submit after overwrite confirmation.
 
 ## Saved state is missing
 
