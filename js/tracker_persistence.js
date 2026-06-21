@@ -428,6 +428,11 @@ function validateImportedKnowledgePayloads(importedState, errors) {
       'Water knowledge known-this-turn flag',
       errors
     );
+    validateImportedBoolean(
+      importedState.waterKnowledge.exactKnownThisTurn,
+      'Water knowledge exact-known-this-turn flag',
+      errors
+    );
     if (importedState.waterKnowledge.streak !== undefined) {
       if (!isFiniteNumericImportValue(importedState.waterKnowledge.streak))
         errors.push('Water knowledge streak must be numeric.');
@@ -668,7 +673,7 @@ function playerKnownWaterLevel() {
     return { known: true, value: Number(state.waterLevel), automatic: true };
   }
   const known = playerKnownValue('waterLevel');
-  if (known.known) return known;
+  if (known.known && state.waterKnowledge?.exactKnownThisTurn) return known;
   return { known: false, value: null, safeBelowCargo: true };
 }
 
@@ -786,6 +791,11 @@ function devValidationChecks() {
     daysToTravelTicks(5.5) === 44 && travelDaysFromTicks(1) === 0.125,
     `${daysToTravelTicks(5.5)} ticks for 5.5 days.`
   );
+  check(
+    'Player travel estimate rounds to half days',
+    playerTravelDaysFromTicks(45) === 5.5 && playerTravelDaysFromTicks(46) === 6,
+    `${playerTravelDaysFromTicks(45)}d and ${playerTravelDaysFromTicks(46)}d`
+  );
 
   state = { travel: 4.75 };
   migrateState();
@@ -796,14 +806,20 @@ function devValidationChecks() {
   );
   state = originalState;
 
-  withState({ courseMeter: 6 }, () => {
+  withState({ courseMeter: 6, travelTicks: 45 }, () => {
     applyNavigateResult('navigateFailure');
     check('Navigate failure adds Course +2', state.courseMeter === 8, `got ${state.courseMeter}`);
     rememberPlayerKnowledge('courseState');
+    rememberPlayerKnowledge('travel');
     check(
       'Navigate reveals resulting Course State',
       state.playerKnowledge.courseState === 'Drifting',
       `got ${state.playerKnowledge.courseState}`
+    );
+    check(
+      'Navigate reveals rounded Travel Remaining',
+      state.playerKnowledge.travel === 5.5,
+      `got ${state.playerKnowledge.travel}`
     );
   });
   withState({ courseMeter: 10 }, () => {
@@ -1039,6 +1055,29 @@ function devValidationChecks() {
       `got ${actionDuration(actionById('examineRod'))}`
     );
   });
+  withState({ day: 1, turn: 1, waterLevel: 5, minIngress: 2, activeLeaks: 1 }, () => {
+    state.playerKnowledge.waterLevel = 1;
+    state.playerKnowledge.totalIngress = 3;
+    state.waterKnowledge.turnKey = currentTurnKey();
+    state.waterKnowledge.knownThisTurn = true;
+    state.waterKnowledge.exactKnownThisTurn = true;
+    state.waterKnowledge.lastKnownTurnKey = currentTurnKey();
+    state.waterKnowledge.streak = 2;
+    state.waterLevel = 4;
+    hideWaterLevelKnowledgeIfBelowCargoHold(5, 4);
+    const known = playerKnownWaterLevel();
+    check(
+      'Water below cargo hold hides exact player value',
+      known.known === false &&
+        known.safeBelowCargo === true &&
+        state.playerKnowledge.waterLevel === null &&
+        state.playerKnowledge.totalIngress === null &&
+        state.waterKnowledge.knownThisTurn === false &&
+        state.waterKnowledge.exactKnownThisTurn === false &&
+        state.waterKnowledge.streak === 0,
+      JSON.stringify({ known, waterKnowledge: state.waterKnowledge })
+    );
+  });
   withState({ waterLevel: 3, minIngress: 2, activeLeaks: 1 }, () => {
     applyActionStart(state.crew[0], actionById('examineRod'));
     const prompt = state.pendingChecks.find((item) => item.effect === 'bilgeRod');
@@ -1205,6 +1244,7 @@ function migrateState() {
   };
   state.waterKnowledge.streak = Math.max(0, Number(state.waterKnowledge.streak || 0));
   state.waterKnowledge.knownThisTurn = Boolean(state.waterKnowledge.knownThisTurn);
+  state.waterKnowledge.exactKnownThisTurn = Boolean(state.waterKnowledge.exactKnownThisTurn);
   state.pendingChecks = Array.isArray(state.pendingChecks) ? state.pendingChecks : [];
   state.deferredCompletions = Array.isArray(state.deferredCompletions)
     ? state.deferredCompletions

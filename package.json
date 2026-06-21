@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "check:syntax": "node --check action_metadata.js && node --check tracker_state.js && node --check tracker_render.js && node --check tracker_gameplay.js && node --check tracker_persistence.js && node --check tracker.js && node --check player_view.js && node --check tests/tracker_validation.test.js",
+    "check:syntax": "node --check js/action_metadata.js && node --check js/tracker_state.js && node --check js/tracker_render.js && node --check js/tracker_gameplay.js && node --check js/tracker_persistence.js && node --check js/tracker.js && node --check js/player_view.js && node --check tests/tracker_validation.test.js",
     "ci": "npm run format:check && npm run check:syntax && npm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

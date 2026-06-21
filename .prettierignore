@@ -1,5 +1,6 @@
 node_modules
-design_document.txt
-MarrowWindActions.txt
-todo.txt
-play_test_notes.txt
+docs/design_document.txt
+docs/MarrowWindActions.txt
+docs/todo.txt
+docs/play_test_notes.txt
+.vscode/settings.json

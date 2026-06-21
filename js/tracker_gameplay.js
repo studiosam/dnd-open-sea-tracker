@@ -610,10 +610,10 @@ function maybeAddActionPrompt(character, action) {
       type: 'check',
       character: name,
       title: 'Navigate / Study Map',
-      detail: `Resolve the navigation check. Critical failure: Course Meter +0. Failure: +2. Success: +4. Critical success: +5. Course Meter caps at 12. Players learn the resulting Course State whether the check succeeds or fails.${advantageSourceText(name, 'navigate')}`,
+      detail: `Resolve the navigation check. Critical failure: Course Meter +0. Failure: +2. Success: +4. Critical success: +5. Course Meter caps at 12. Players learn the resulting Course State and rounded Travel Remaining whether the check succeeds or fails.${advantageSourceText(name, 'navigate')}`,
       dc: 15,
       effect: 'navigateCourse',
-      reveals: ['courseState'],
+      reveals: ['courseState', 'travel'],
       outcomes: [
         { id: 'navigateCriticalSuccess', label: 'Critical Success: Course +5', className: 'good' },
         { id: 'navigateSuccess', label: 'Success: Course +4', className: 'good' },
@@ -915,12 +915,16 @@ function rememberPlayerKnowledge(key) {
     key === 'totalIngress'
       ? totalIngress()
       : key === 'travel'
-        ? travelDaysFromTicks()
+        ? playerTravelDaysFromTicks()
         : key === 'courseState'
           ? courseStateForMeter().name
           : Number(state[key]);
   state.playerKnowledge[key] = value;
-  if (key === 'waterLevel') markWaterKnownForCurrentTurn('water level was revealed');
+  if (key === 'waterLevel') {
+    ensureWaterKnowledgeTurn();
+    state.waterKnowledge.exactKnownThisTurn = true;
+    markWaterKnownForCurrentTurn('water level was revealed');
+  }
   log(`Players learned the current ${fieldLabel(key)}: ${knowledgeValueText(value)}.`);
 }
 
@@ -965,6 +969,7 @@ function ensureWaterKnowledgeTurn() {
   if (state.waterKnowledge.turnKey === key) return;
   state.waterKnowledge.turnKey = key;
   state.waterKnowledge.knownThisTurn = false;
+  state.waterKnowledge.exactKnownThisTurn = false;
   hideTotalIngressKnowledge();
 }
 
@@ -1004,6 +1009,23 @@ function markWaterKnownForCurrentTurn(reason) {
   } else {
     hideTotalIngressKnowledge();
   }
+}
+
+function hideWaterLevelKnowledgeIfBelowCargoHold(beforeWaterLevel, afterWaterLevel) {
+  if (Number(beforeWaterLevel) >= 5 && Number(afterWaterLevel) < 5) {
+    forgetExactWaterKnowledge();
+  }
+}
+
+function forgetExactWaterKnowledge() {
+  if (!state.playerKnowledge) state.playerKnowledge = structuredClone(defaultState.playerKnowledge);
+  state.playerKnowledge.waterLevel = null;
+  ensureWaterKnowledgeTurn();
+  state.waterKnowledge.knownThisTurn = false;
+  state.waterKnowledge.exactKnownThisTurn = false;
+  state.waterKnowledge.streak = 0;
+  state.waterKnowledge.lastKnownTurnKey = '';
+  hideTotalIngressKnowledge();
 }
 
 function hideTotalIngressKnowledge() {
@@ -1072,6 +1094,7 @@ function change(id, amount) {
   const before = Number(state[id] || 0);
   state[id] = Math.max(0, Number(state[id]) + amount);
   if (id === 'waterLevel') updateWaterTravelPenalty();
+  if (id === 'waterLevel') hideWaterLevelKnowledgeIfBelowCargoHold(before, state[id]);
   log(
     `Manual override: ${fieldLabel(id)} changed from ${formatNumber(before)} to ${formatNumber(state[id])}.`
   );
@@ -1106,6 +1129,7 @@ function endTurn() {
   const after = Math.max(0, before + ingress - pumping - buckets);
   state.waterLevel = after;
   updateWaterTravelPenalty();
+  hideWaterLevelKnowledgeIfBelowCargoHold(before, after);
   log(
     `Water was updated: ${before} + ${ingress} ingress - ${pumping} pumping - ${buckets} buckets = ${after}.`
   );

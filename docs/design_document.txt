@@ -19,30 +19,30 @@ Preserve and improve the current structure incrementally unless the existing str
 
 ## Implementation Structure
 
-The DM tracker uses classic browser scripts and delegated event handling so it remains build-free. Static and generated controls should use `data-action` for click actions or `data-change-action` for change actions. `tracker_gameplay.js` owns the delegated event dispatchers.
+The DM tracker uses classic browser scripts from `js/` and delegated event handling so it remains build-free. Static and generated controls should use `data-action` for click actions or `data-change-action` for change actions. `js/tracker_gameplay.js` owns the delegated event dispatchers.
 
 DM tracker script order:
 
-1. `action_metadata.js`
-2. `tracker_state.js`
-3. `tracker_render.js`
-4. `tracker_gameplay.js`
-5. `tracker_persistence.js`
-6. `tracker.js`
+1. `js/action_metadata.js`
+2. `js/tracker_state.js`
+3. `js/tracker_render.js`
+4. `js/tracker_gameplay.js`
+5. `js/tracker_persistence.js`
+6. `js/tracker.js`
 
 Responsibilities:
 
-* `tracker_state.js` contains shared state, rule tables, and low-level rule helpers.
-* `tracker_render.js` contains DM screen rendering and UI view helpers.
-* `tracker_gameplay.js` contains DM action handlers, prompts, turn flow, events, meals, and overtime behavior.
-* `tracker_persistence.js` contains save/load, export/import, player-state publishing, validation, migration, and labels.
-* `tracker.js` only boots the tracker after support scripts are loaded.
+* `js/tracker_state.js` contains shared state, rule tables, and low-level rule helpers.
+* `js/tracker_render.js` contains DM screen rendering and UI view helpers.
+* `js/tracker_gameplay.js` contains DM action handlers, prompts, turn flow, events, meals, and overtime behavior.
+* `js/tracker_persistence.js` contains save/load, export/import, player-state publishing, validation, migration, and labels.
+* `js/tracker.js` only boots the tracker after support scripts are loaded.
 * `tests/` contains Node tests that load the browser scripts in a VM and exercise validation, migration, import safety, and event-binding coverage.
 
 Implementation conventions:
 
 * Do not add inline `onclick`, `onchange`, or `oninput` attributes.
-* Add new button actions through the delegated dispatcher in `tracker_gameplay.js`.
+* Add new button actions through the delegated dispatcher in `js/tracker_gameplay.js`.
 * Keep generated markup declarative with `data-*` attributes where practical.
 * Run `npm test` after rule, import, migration, or event-binding changes.
 
@@ -299,6 +299,7 @@ Navigate / Study Map
 
 * Represents studying the map, checking bearings, comparing charts, plotting the route, or otherwise correcting the ship's course.
 * Affects the Course Meter, not Travel Remaining directly.
+* Reveals the resulting Course State and Travel Remaining rounded to the nearest 0.5 day.
 * Critical failure: Course Meter +0.
 * Failure: Course Meter +2.
 * Success: Course Meter +4.
@@ -642,6 +643,7 @@ The DM must be able to manually adjust:
 
 Player-facing knowledge rules:
 
+* Navigate / Study Map reveals the resulting Course State and Travel Remaining rounded to the nearest 0.5 day.
 * Water Level is exact only when the players check the Bilge Sounding Rod or when water is visibly in the cargo hold.
 * Checking the Bilge Sounding Rod reveals the current Water Level.
 * Succeeding on the Bilge Sounding Rod check reveals Total Water Ingress immediately.

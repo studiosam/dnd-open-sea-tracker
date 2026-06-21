@@ -1,5 +1,6 @@
 // GM screen rendering and UI-derived view helpers.
 function syncFromInputs() {
+  const previousWaterLevel = Number(state.waterLevel || 0);
   [
     'day',
     'turn',
@@ -15,6 +16,7 @@ function syncFromInputs() {
     const element = q(id);
     if (element) state[id] = Number(element.value);
   });
+  hideWaterLevelKnowledgeIfBelowCargoHold(previousWaterLevel, state.waterLevel);
   const travelInput = q('travel');
   if (travelInput) state.travelTicks = daysToTravelTicks(travelInput.value);
   state.courseMeter = clampCourseMeter(state.courseMeter);
@@ -479,6 +481,7 @@ function scoreboardChange(field, amount) {
     syncTravelDaysFromTicks();
   }
   if (field === 'waterLevel') updateWaterTravelPenalty();
+  if (field === 'waterLevel') hideWaterLevelKnowledgeIfBelowCargoHold(before, state.waterLevel);
   if (['day', 'turn'].includes(field)) reconcileManualNightOvertime();
   log(
     `Manual override: ${fieldLabel(field)} changed from ${formatNumber(before)} to ${formatNumber(state[field])}.`
@@ -491,6 +494,7 @@ function scoreboardSet(field, value) {
   pushUndo(`Set ${fieldLabel(field)}`);
   const before = state[field];
   state[field] = value;
+  if (field === 'waterLevel') hideWaterLevelKnowledgeIfBelowCargoHold(before, state.waterLevel);
   log(`Manual override: ${fieldLabel(field)} changed from ${before} to ${value}.`);
   render();
 }
@@ -508,9 +512,7 @@ function forgetPlayerKnowledge(field) {
   if (!state.playerKnowledge) state.playerKnowledge = structuredClone(defaultState.playerKnowledge);
   state.playerKnowledge[field] = null;
   if (field === 'waterLevel') {
-    ensureWaterKnowledgeTurn();
-    state.waterKnowledge.knownThisTurn = false;
-    hideTotalIngressKnowledge();
+    forgetExactWaterKnowledge();
   }
   log(`Players no longer have an exact known value for ${fieldLabel(field)}.`);
   render();
@@ -900,18 +902,21 @@ function characterTurnsRemaining(name) {
     (item) => item.status === 'active' && item.actors.includes(name)
   );
   if (ongoing) return String(Number(ongoing.remaining || 1));
-  const action = actionById(state.plannedActions[name]);
+  const action = actionById(state.confirmedActions[name]);
+  if (action?.id === 'idle') return '-';
   if (action) return String(actionDuration(action));
   return '-';
 }
 
 function characterDoneInStatus(name) {
-  const action = actionById(state.plannedActions[name]);
+  const ongoing = state.ongoing.some(
+    (item) => item.status === 'active' && item.actors.includes(name)
+  );
+  if (ongoing) return 'normal';
+  const action = actionById(state.confirmedActions[name]);
+  if (action?.id === 'idle') return '';
   if (action && belowDeckDurationPenalty(action) > 0) return 'flooded';
-  return action ||
-    state.ongoing.some((item) => item.status === 'active' && item.actors.includes(name))
-    ? 'normal'
-    : '';
+  return action ? 'normal' : '';
 }
 
 // Recomputed every render so impossible actions disappear as ship state changes.

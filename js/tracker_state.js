@@ -47,6 +47,7 @@ const defaultState = {
   waterKnowledge: {
     turnKey: '',
     knownThisTurn: false,
+    exactKnownThisTurn: false,
     lastKnownTurnKey: '',
     streak: 0
   },
@@ -502,6 +503,9 @@ function daysToTravelTicks(days) {
 }
 function travelDaysFromTicks(ticks = state.travelTicks) {
   return Number(ticks || 0) / TRAVEL_TICKS_PER_DAY;
+}
+function playerTravelDaysFromTicks(ticks = state.travelTicks) {
+  return Math.round(travelDaysFromTicks(ticks) * 2) / 2;
 }
 function syncTravelDaysFromTicks() {
   state.travel = travelDaysFromTicks();

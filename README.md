@@ -6,18 +6,18 @@ A browser-based tracker for running the Marrowwind open sea voyage rules. The DM
 
 - `open_sea_tracker.html` - DM-facing tracker.
 - `player_view.html` - player-facing display for a second monitor.
-- `tracker_state.js` - shared DM tracker state, rule tables, and low-level rule helpers.
-- `tracker_render.js` - DM screen rendering and UI view helpers.
-- `tracker_gameplay.js` - DM actions, prompts, turn flow, events, meals, and overtime handlers.
-- `tracker_persistence.js` - save/load, player-state publishing, validation, migration, and labels.
-- `tracker.js` - small DM tracker bootstrap loaded after the support scripts.
-- `player_view.js` - player screen rendering and sync logic.
-- `styles.css` - shared styling for both screens.
+- `js/tracker_state.js` - shared DM tracker state, rule tables, and low-level rule helpers.
+- `js/tracker_render.js` - DM screen rendering and UI view helpers.
+- `js/tracker_gameplay.js` - DM actions, prompts, turn flow, events, meals, and overtime handlers.
+- `js/tracker_persistence.js` - save/load, player-state publishing, validation, migration, and labels.
+- `js/tracker.js` - small DM tracker bootstrap loaded after the support scripts.
+- `js/player_view.js` - player screen rendering and sync logic.
+- `css/styles.css` - shared styling for both screens.
 - `tests/` - Node test suite for tracker rules, import validation, and event binding coverage.
 - `package.json` - npm script wrapper for the Node test suite.
-- `design_document.txt` - system design notes and turn structure.
-- `MarrowWindActions.txt` - current action reference.
-- `CHANGELOG.md` - practical current-state history notes.
+- `docs/design_document.txt` - system design notes and turn structure.
+- `docs/MarrowWindActions.txt` - current action reference.
+- `docs/CHANGELOG.md` - practical current-state history notes.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ A browser-based tracker for running the Marrowwind open sea voyage rules. The DM
 
 No server or build step is required.
 
-The DM tracker scripts are loaded as classic browser scripts in dependency order. Keep `tracker_state.js`, `tracker_render.js`, `tracker_gameplay.js`, `tracker_persistence.js`, and `tracker.js` in the same folder as `open_sea_tracker.html`. DM controls use delegated `data-action` and `data-change-action` handlers rather than inline event attributes.
+The DM tracker scripts are loaded as classic browser scripts from `js/` in dependency order. Keep `js/tracker_state.js`, `js/tracker_render.js`, `js/tracker_gameplay.js`, `js/tracker_persistence.js`, and `js/tracker.js` loaded in that order from `open_sea_tracker.html`. DM controls use delegated `data-action` and `data-change-action` handlers rather than inline event attributes.
 
 ## Testing
 
@@ -126,7 +126,7 @@ The formal validation path is `npm test`. The DM screen still includes a collaps
 
 Travel is stored internally as ticks: `8` ticks equals `1` day. The DM scoreboard shows exact travel ticks, Course Meter, and Course State. The player screen shows revealed travel as a readable value rounded to the nearest half day.
 
-`Navigate / Study Map` adjusts the Course Meter and reveals the resulting Course State to players whether the check succeeds or fails. If Navigate / Study Map resolves during a turn, the normal end-of-turn Course Meter decay is skipped for that turn. `Man Helm` applies one better Course State and improves Course on critical success, the current Course State on success, one worse Course State on failure, and one worse Course State plus `Course Meter -1` on critical failure. Fisherman background grants advantage on fishing checks.
+`Navigate / Study Map` adjusts the Course Meter and reveals the resulting Course State plus Travel Remaining rounded to the nearest half day whether the check succeeds or fails. If Navigate / Study Map resolves during a turn, the normal end-of-turn Course Meter decay is skipped for that turn. `Man Helm` applies one better Course State and improves Course on critical success, the current Course State on success, one worse Course State on failure, and one worse Course State plus `Course Meter -1` on critical failure. Fisherman background grants advantage on fishing checks.
 
 ## Player Knowledge
 
@@ -134,7 +134,7 @@ Some player-facing values start unknown and display as `?` until learned in play
 
 Players can learn values through actions such as:
 
-- `Navigate / Study Map` - corrects the Course Meter and reveals Course State.
+- `Navigate / Study Map` - corrects the Course Meter and reveals Course State plus rounded travel remaining.
 - `Inventory Food` - reveals food.
 - `Inventory Water` - reveals fresh water.
 - `Inventory Repair Supplies` - reveals repair supplies.

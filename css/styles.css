@@ -1448,7 +1448,7 @@ th:nth-child(4) {
 .player-main {
   height: calc(100vh - 56px);
   grid-template-columns: repeat(18, minmax(0, 1fr));
-  grid-template-rows: minmax(118px, 16vh) minmax(0, 1fr) minmax(118px, 17vh);
+  grid-template-rows: minmax(118px, 16vh) minmax(0, 1fr) minmax(220px, 28vh);
   gap: 10px;
   padding: 10px;
   overflow: hidden;
@@ -1601,8 +1601,8 @@ th:nth-child(4) {
 .player-view .progress-list {
   max-height: none;
   overflow: hidden;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-content: flex-start;
   gap: 8px;
 }
@@ -1631,6 +1631,42 @@ th:nth-child(4) {
 .player-effect-chip.danger {
   border-color: var(--danger);
   color: var(--danger);
+}
+.player-effect-card {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--accent);
+  border-radius: 12px;
+  background: var(--field);
+  color: var(--text);
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.player-effect-card.good {
+  border-left-color: var(--good);
+}
+.player-effect-card.warn {
+  border-left-color: var(--warn);
+}
+.player-effect-card.danger {
+  border-left-color: var(--danger);
+}
+.player-effect-title {
+  color: var(--muted);
+  font-size: clamp(11px, 0.75vw, 14px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.player-effect-detail {
+  margin-top: 3px;
+  font-size: clamp(12px, 0.78vw, 15px);
+  line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 /* Responsive fallbacks for smaller browser windows. */
 @media (max-width: 1100px) {

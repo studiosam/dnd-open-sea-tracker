@@ -6,11 +6,11 @@ const vm = require('node:vm');
 
 const repoRoot = path.resolve(__dirname, '..');
 const trackerFiles = [
-  'action_metadata.js',
-  'tracker_state.js',
-  'tracker_render.js',
-  'tracker_gameplay.js',
-  'tracker_persistence.js'
+  'js/action_metadata.js',
+  'js/tracker_state.js',
+  'js/tracker_render.js',
+  'js/tracker_gameplay.js',
+  'js/tracker_persistence.js'
 ];
 
 function readProjectFile(filePath) {
@@ -95,14 +95,14 @@ function loadPlayerContext() {
   };
   context.globalThis = context;
   vm.createContext(context);
-  vm.runInContext(readProjectFile('action_metadata.js'), context, {
-    filename: 'action_metadata.js'
+  vm.runInContext(readProjectFile('js/action_metadata.js'), context, {
+    filename: 'js/action_metadata.js'
   });
-  const playerSource = readProjectFile('player_view.js').replace(
+  const playerSource = readProjectFile('js/player_view.js').replace(
     /\/\/ Storage events update this page[\s\S]*$/,
     ''
   );
-  vm.runInContext(playerSource, context, { filename: 'player_view.js' });
+  vm.runInContext(playerSource, context, { filename: 'js/player_view.js' });
   return {
     context,
     evaluate(expression) {
@@ -299,7 +299,7 @@ test('import normalization rejects unknown action references', () => {
 });
 
 test('DM controls use delegated handlers with full dispatcher coverage', () => {
-  const files = ['open_sea_tracker.html', 'tracker_render.js', 'tracker_gameplay.js'];
+  const files = ['open_sea_tracker.html', 'js/tracker_render.js', 'js/tracker_gameplay.js'];
   const combined = files.map(readProjectFile).join('\n');
   assert.equal(/on(?:click|change|input)=/.test(combined), false);
 
@@ -307,7 +307,7 @@ test('DM controls use delegated handlers with full dispatcher coverage', () => {
   const changeActions = [...combined.matchAll(/data-change-action="([^"]+)"/g)].map(
     (match) => match[1]
   );
-  const gameplay = readProjectFile('tracker_gameplay.js');
+  const gameplay = readProjectFile('js/tracker_gameplay.js');
 
   [...new Set(clickActions)].forEach((action) => {
     assert.match(
@@ -333,6 +333,207 @@ test('player travel display rounds to half-day increments', () => {
     formatPlayerTravelDays(4.25)
   ]`);
   assert.deepEqual([...result], ['5.5', '6', '4.5']);
+});
+
+test('navigate reveals rounded travel remaining', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    syncFromInputs = () => {};
+    saveStateSnapshot = () => {};
+    render = () => {};
+    renderUndoStatus = () => {};
+    state = structuredClone(defaultState);
+    state.courseMeter = 6;
+    state.travelTicks = 45;
+    syncTravelDaysFromTicks();
+    applyActionStart(state.crew[0], actionById('studyMap'));
+    const prompt = state.pendingChecks.find((item) => item.effect === 'navigateCourse');
+    resolvePromptOutcome(prompt.id, 'navigateFailure');
+    publishPlayerState();
+    const playerState = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      reveals: prompt.reveals,
+      courseState: state.playerKnowledge.courseState,
+      travel: state.playerKnowledge.travel,
+      playerTravelKnown: playerState.travel.known,
+      playerTravelValue: playerState.travel.value
+    };
+  })()`);
+  assert.deepEqual([...result.reveals], ['courseState', 'travel']);
+  assert.equal(result.courseState, 'Drifting');
+  assert.equal(result.travel, 5.5);
+  assert.equal(result.playerTravelKnown, true);
+  assert.equal(result.playerTravelValue, 5.5);
+});
+
+test('water dropping below cargo hold hides exact player value', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    syncFromInputs = () => {};
+    render = () => {};
+    renderUndoStatus = () => {};
+    state = structuredClone(defaultState);
+    state.day = 1;
+    state.turn = 1;
+    state.waterLevel = 5;
+    state.minIngress = 2;
+    state.activeLeaks = 1;
+    state.playerKnowledge.waterLevel = 1;
+    state.playerKnowledge.totalIngress = 3;
+    state.waterKnowledge.turnKey = currentTurnKey();
+    state.waterKnowledge.knownThisTurn = true;
+    state.waterKnowledge.exactKnownThisTurn = true;
+    state.waterKnowledge.lastKnownTurnKey = currentTurnKey();
+    state.waterKnowledge.streak = 2;
+    scoreboardChange('waterLevel', -1);
+    publishPlayerState();
+    const playerState = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      waterLevel: state.waterLevel,
+      playerKnowledgeWater: state.playerKnowledge.waterLevel,
+      playerKnowledgeIngress: state.playerKnowledge.totalIngress,
+      knownThisTurn: state.waterKnowledge.knownThisTurn,
+      exactKnownThisTurn: state.waterKnowledge.exactKnownThisTurn,
+      streak: state.waterKnowledge.streak,
+      playerWater: playerState.waterLevel
+    };
+  })()`);
+  assert.equal(result.waterLevel, 4);
+  assert.equal(result.playerKnowledgeWater, null);
+  assert.equal(result.playerKnowledgeIngress, null);
+  assert.equal(result.knownThisTurn, false);
+  assert.equal(result.exactKnownThisTurn, false);
+  assert.equal(result.streak, 0);
+  assert.deepEqual(result.playerWater, { known: false, value: null, safeBelowCargo: true });
+});
+
+test('bilge rod reading reveals exact water below cargo hold', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    renderUndoStatus = () => {};
+    state = structuredClone(defaultState);
+    state.day = 1;
+    state.turn = 1;
+    state.waterLevel = 3;
+    rememberPlayerKnowledge('waterLevel');
+    publishPlayerState();
+    return JSON.parse(localStorage.getItem(PLAYER_STATE_KEY)).waterLevel;
+  })()`);
+  assert.deepEqual(result, { known: true, value: 3 });
+});
+
+test('player safe water text says bilge only', () => {
+  const player = loadPlayerContext();
+  const result = player.evaluate(`
+    waterMeterCard({ known: false, value: null, safeBelowCargo: true })
+  `);
+  assert.match(result, /Bilge Only/);
+  assert.match(result, /Safe, exact level unknown/);
+});
+
+test('player active effects include mechanical details', () => {
+  const tracker = loadTrackerContext();
+  const published = tracker.evaluate(`(() => {
+    state = structuredClone(defaultState);
+    state.waterLevel = 10;
+    publishPlayerState();
+    return JSON.parse(localStorage.getItem(PLAYER_STATE_KEY)).effects;
+  })()`);
+  const waterEffect = [...published].find((effect) => effect.title === 'Waist-Deep Flooding');
+  assert.equal(waterEffect.detail, 'Below-deck actions take +1 Turn and cost +1 Labor.');
+
+  const player = loadPlayerContext();
+  const fallback = player.evaluate(`(() => {
+    const effect = publicEffectsFromFullState({ waterLevel: 10, conditions: [] })[0];
+    const element = { innerHTML: '' };
+    document.getElementById = () => element;
+    renderEffects([effect]);
+    return { effect, html: element.innerHTML };
+  })()`);
+  assert.equal(fallback.effect.detail, 'Below-deck actions take +1 Turn and cost +1 Labor.');
+  assert.match(fallback.html, /Waist Deep/);
+  assert.match(fallback.html, /Below-deck actions take \+1 Turn and cost \+1 Labor\./);
+});
+
+test('player active effects layout supports six wrapped cards', () => {
+  const styles = readProjectFile('css/styles.css');
+  assert.match(styles, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(
+    styles,
+    /grid-template-rows:\s*minmax\(118px,\s*16vh\)\s*minmax\(0,\s*1fr\)\s*minmax\(220px,\s*28vh\)/
+  );
+  assert.match(styles, /\.player-effect-card\s*\{[\s\S]*overflow-wrap:\s*anywhere;/);
+  assert.match(styles, /\.player-effect-detail\s*\{[\s\S]*overflow-wrap:\s*anywhere;/);
+});
+
+test('idle shows dash for turns remaining', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    renderUndoStatus = () => {};
+    state = structuredClone(defaultState);
+    const name = state.crew[0].name;
+    state.plannedActions[name] = 'idle';
+    publishPlayerState();
+    const playerState = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    const playerCrew = playerState.crew.find((character) => character.name === name);
+    return {
+      dmTurnsRemaining: characterTurnsRemaining(name),
+      playerTurnsRemaining: playerCrew.turnsRemaining
+    };
+  })()`);
+  assert.equal(result.dmTurnsRemaining, '-');
+  assert.equal(result.playerTurnsRemaining, '-');
+
+  const player = loadPlayerContext();
+  const fallback = player.evaluate(`
+    publicCrewTurnsRemainingFromFullState({ plannedActions: { Leopold: 'idle' }, ongoing: [], waterLevel: 1 }, 'Leopold')
+  `);
+  assert.equal(fallback, '');
+});
+
+test('unconfirmed remembered action shows dash for turns remaining', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    renderUndoStatus = () => {};
+    state = structuredClone(defaultState);
+    const name = state.crew[0].name;
+    state.plannedActions[name] = 'inventoryFood';
+    state.confirmedActions[name] = 'inventoryFood';
+    const beforeAdvance = {
+      dmTurnsRemaining: characterTurnsRemaining(name),
+      doneInStatus: characterDoneInStatus(name)
+    };
+    advanceTurn(false, false, false);
+    publishPlayerState();
+    const playerState = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    const playerCrew = playerState.crew.find((character) => character.name === name);
+    return {
+      beforeAdvance,
+      plannedAction: state.plannedActions[name],
+      confirmedAction: state.confirmedActions[name] || '',
+      dmTurnsRemaining: characterTurnsRemaining(name),
+      doneInStatus: characterDoneInStatus(name),
+      playerTurnsRemaining: playerCrew.turnsRemaining,
+      playerDoneInStatus: playerCrew.doneInStatus
+    };
+  })()`);
+  assert.equal(result.beforeAdvance.dmTurnsRemaining, '1');
+  assert.equal(result.beforeAdvance.doneInStatus, 'normal');
+  assert.equal(result.plannedAction, 'inventoryFood');
+  assert.equal(result.confirmedAction, '');
+  assert.equal(result.dmTurnsRemaining, '-');
+  assert.equal(result.doneInStatus, '');
+  assert.equal(result.playerTurnsRemaining, '-');
+  assert.equal(result.playerDoneInStatus, '');
+
+  const player = loadPlayerContext();
+  const fallback = player.evaluate(`
+    publicCrewTurnsRemainingFromFullState(
+      { plannedActions: { Leopold: 'inventoryFood' }, confirmedActions: {}, ongoing: [], waterLevel: 1 },
+      'Leopold'
+    )
+  `);
+  assert.equal(fallback, '');
 });
 
 test('scripted scene turn forces idle and preserves ongoing work', () => {

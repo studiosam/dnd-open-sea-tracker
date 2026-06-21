@@ -90,8 +90,8 @@ function publicCrewTurnsRemainingFromFullState(state, name) {
     (item) => item.status === 'active' && (item.actors || []).includes(name)
   );
   if (ongoing) return String(Number(ongoing.remaining || 1));
-  const actionId = state.plannedActions?.[name];
-  if (!actionId) return '';
+  const actionId = state.confirmedActions?.[name];
+  if (!actionId || actionId === 'idle') return '';
   return String(publicActionDurationFromFullState(state, actionId));
 }
 
@@ -104,13 +104,12 @@ function publicActionDurationFromFullState(state, actionId) {
 }
 
 function publicCrewDoneInStatusFromFullState(state, name) {
-  const actionId = state.plannedActions?.[name];
-  if (!actionId)
-    return (state.ongoing || []).some(
-      (item) => item.status === 'active' && (item.actors || []).includes(name)
-    )
-      ? 'normal'
-      : '';
+  const ongoing = (state.ongoing || []).some(
+    (item) => item.status === 'active' && (item.actors || []).includes(name)
+  );
+  if (ongoing) return 'normal';
+  const actionId = state.confirmedActions?.[name];
+  if (!actionId || actionId === 'idle') return '';
   return actionGetsFloodedExtraTurn(actionMetadata(actionId)) && Number(state.waterLevel || 0) >= 5
     ? 'flooded'
     : 'normal';
@@ -142,7 +141,7 @@ function knownWaterLevelFromFullState(state) {
     return { known: true, value: Number(state.waterLevel), automatic: true };
   }
   const known = knownValueFromFullState(state, 'waterLevel');
-  if (known.known) return known;
+  if (known.known && state.waterKnowledge?.exactKnownThisTurn) return known;
   return { known: false, value: null, safeBelowCargo: true };
 }
 
@@ -155,39 +154,120 @@ function totalIngressSeverityFromFullState(state) {
 
 // Rebuild player-facing active effects from the full state fallback.
 function publicEffectsFromFullState(state) {
-  const conditions = (state.conditions || [])
+  const effects = [];
+  const waterEffect = publicWaterEffectFromFullState(state);
+  if (waterEffect) effects.push(waterEffect);
+  (state.conditions || [])
     .filter((condition) => Number(condition.turns) > 0)
-    .map((condition) => ({
-      title: condition.name,
-      detail: `${condition.turns} turn${Number(condition.turns) === 1 ? '' : 's'} remaining.`
-    }));
+    .forEach((condition) => effects.push(publicConditionEffect(condition)));
   if (state.isNightOvertime)
-    conditions.push({
+    effects.push({
       title: 'Night Overtime',
       detail: 'The crew is working through the night. Exhaustion risk is increasing.',
       className: 'danger'
     });
   if (state.pumpStatus === 'Jammed')
-    conditions.push({
+    effects.push({
       title: 'Bilge Pump Jammed',
-      detail: 'The bilge pump cannot be used until repaired.'
+      detail: 'Bilge pump actions are unavailable until Repair Bilge Pump is completed.',
+      className: 'warn'
     });
   if (state.netStatus === 'Tangled')
-    conditions.push({
+    effects.push({
       title: 'Fishing Net Tangled',
-      detail: 'The fishing net must be reset before it can be cast again.'
+      detail: 'Cast Fishing Net is unavailable until Reset Fishing Net is completed.',
+      className: 'warn'
     });
-  if (state.mastStatus === 'Broken' || state.rudderStatus === 'Broken')
-    conditions.push({
-      title: 'Travel Impaired',
-      detail: 'The ship cannot make normal progress until repaired.'
+  if (state.mastStatus === 'Broken')
+    effects.push({
+      title: 'Mast Broken',
+      detail:
+        'Man Helm is automatic: no Helm check is made and the ship cannot make sail progress.',
+      className: 'danger'
+    });
+  else if (state.rudderStatus === 'Broken')
+    effects.push({
+      title: 'Rudder Broken',
+      detail:
+        'Man Helm is automatic: no Helm check is made and the ship randomly applies True Course, Drifting, Off Course, or Lost.',
+      className: 'danger'
     });
   if (state.riggingStatus === 'Broken')
-    conditions.push({
+    effects.push({
       title: 'Broken Rigging',
-      detail: 'Snapped rigging is making the deck dangerous.'
+      detail:
+        'At the start of each turn, a random top-deck creature may need a DC 13 Dexterity save.',
+      className: 'danger'
     });
-  return conditions;
+  return effects;
+}
+
+function publicWaterEffectFromFullState(state) {
+  const level = Number(state.waterLevel);
+  if (level >= 20)
+    return { title: 'Sunk', detail: 'The Marrowwind is sinking.', className: 'danger' };
+  if (level >= 15)
+    return {
+      title: 'Neck-Deep Flooding',
+      detail: `Below-deck actions take +1 Turn and +1 Labor. Travel penalty is currently ${state.waterTravelPenalty || 0} day(s), and decreases as water drops.`,
+      className: 'danger'
+    };
+  if (level >= 10)
+    return {
+      title: 'Waist-Deep Flooding',
+      detail: 'Below-deck actions take +1 Turn and cost +1 Labor.',
+      className: 'warn'
+    };
+  if (level >= 5)
+    return {
+      title: 'Cargo Hold Flooding',
+      detail: 'Below-deck actions take +1 Turn.',
+      className: 'warn'
+    };
+  return null;
+}
+
+function publicConditionEffect(condition) {
+  const turns = Number(condition.turns);
+  const suffix = `${turns} turn${turns === 1 ? '' : 's'} remaining.`;
+  const effects = {
+    'Dense Fog': {
+      title: 'Dense Fog',
+      detail: `Visibility is reduced to 30 feet. Helm checks, fishing checks, attempts to recover floating objects, and ranged attacks against targets not actively engaged in melee are made at disadvantage. Targets or objects farther than 30 feet away cannot be targeted normally unless revealed by sound, light, magic, or another clear cue. ${suffix}`,
+      className: 'warn'
+    },
+    'School of Fish': {
+      title: 'School of Fish',
+      detail: `The next Cast Fishing Net action this turn has advantage. Harpoons gain no benefit. ${suffix}`,
+      className: 'good'
+    },
+    'Pack of Gulls': {
+      title: 'Pack of Gulls',
+      detail: `Gulls are swarming the ship. Characters may spend their action joining the fight to scare them off for 0 Labor. If not dispatched in 3 rounds, reduce Food by 0.5 days. ${suffix}`,
+      className: 'warn'
+    },
+    'Calm Seas': {
+      title: 'Calm Seas',
+      detail: `The helmsman recovers 1 Labor instead of gaining 1 while steering this turn. ${suffix}`,
+      className: 'good'
+    },
+    'Floating Wreckage': {
+      title: 'Floating Wreckage',
+      detail: `Wreckage can be recovered this turn with a 1-Labor action and DC 12 Dexterity or Athletics check. ${suffix}`,
+      className: 'warn'
+    },
+    'Large Shadow': {
+      title: 'Large Shadow',
+      detail: `A massive shape is beneath the ship and can be targeted with the harpoon. ${suffix}`,
+      className: 'warn'
+    },
+    'Rainwater Collection': {
+      title: 'Rain and Flying Fish',
+      detail: `Characters may spend their action collecting rainwater for 0 Labor. ${suffix}`,
+      className: 'good'
+    }
+  };
+  return effects[condition.name] || { title: condition.name, detail: suffix, className: '' };
 }
 
 // Main player render. Everything here uses already-filtered state, not DM-only raw values.
@@ -306,7 +386,7 @@ function waterMeterCard(field) {
   const value = known ? Number(field?.value ?? field) : 0;
   const percentage = known ? Math.max(0, Math.min(100, (value / 20) * 100)) : 0;
   const dangerColor = known ? waterTextColor(value) : '';
-  const displayValue = known ? formatNumber(value) : safeBelowCargo ? 'Below Cargo Hold' : '?';
+  const displayValue = known ? formatNumber(value) : safeBelowCargo ? 'Bilge Only' : '?';
   const detail = known
     ? `${formatNumber(percentage)}% full`
     : safeBelowCargo
@@ -352,7 +432,7 @@ function waterMarker(level, label) {
   </div>`;
 }
 
-// Handles known/unknown value objects published by tracker.js.
+// Handles known/unknown value objects published by js/tracker.js.
 function stateValue(field, formatter = formatNumber) {
   if (field && typeof field === 'object' && 'known' in field) {
     return field.known ? formatter(field.value) : '?';
@@ -375,7 +455,10 @@ function renderEffects(effects) {
   q('playerEffects').innerHTML = effects
     .map(
       (effect) =>
-        `<span class="player-effect-chip ${escapeHtml(effect.className || '')}">${escapeHtml(effectLabel(effect.title))}</span>`
+        `<div class="player-effect-card ${escapeHtml(effect.className || '')}">
+          <div class="player-effect-title">${escapeHtml(effectLabel(effect.title))}</div>
+          <div class="player-effect-detail">${escapeHtml(effect.detail || '')}</div>
+        </div>`
     )
     .join('');
 }
