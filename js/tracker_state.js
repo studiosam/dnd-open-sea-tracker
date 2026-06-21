@@ -447,6 +447,9 @@ function normalizedShipName(value) {
   const name = typeof value === 'string' ? value.trim() : '';
   return name || DEFAULT_SHIP_NAME;
 }
+function normalizedSetupShipName(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
 function defaultSetupDraft() {
   return {
     voyagePreset: 'marrowwind',
@@ -506,6 +509,21 @@ function setupCrewNameValidationErrors(draft) {
     seenNames.set(duplicateKey, label);
   });
   return errors;
+}
+function setupShipNameValidationErrors(draft) {
+  const name = normalizedSetupShipName(draft?.shipName);
+  const errors = [];
+  if (!name) errors.push('Ship name is required.');
+  if (name.length > SHIP_NAME_MAX_LENGTH) {
+    errors.push(`Ship name must be ${SHIP_NAME_MAX_LENGTH} characters or fewer.`);
+  }
+  return errors;
+}
+function setupValidationErrors(draft) {
+  return [...setupShipNameValidationErrors(draft), ...setupCrewNameValidationErrors(draft)];
+}
+function setupDraftIsValid(draft) {
+  return setupValidationErrors(draft).length === 0;
 }
 function defaultCrewName(index) {
   return crewNames[index] || `Player ${index + 1}`;

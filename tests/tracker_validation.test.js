@@ -411,7 +411,7 @@ test('starting a new voyage opens setup without overwriting saves', () => {
   assert.equal(result.savedShipName, 'Saved Ship');
 });
 
-test('setup screen renders stage two defaults safely', () => {
+test('setup screen renders defaults safely', () => {
   const tracker = loadTrackerContext();
   const markup = tracker.evaluate('setupScreenMarkup(defaultSetupDraft(), true)');
 
@@ -444,8 +444,32 @@ test('setup screen renders stage two defaults safely', () => {
   );
   assert.match(markup, /data-action="back-to-landing"/);
   assert.match(markup, /data-action="reset-setup-defaults"/);
-  assert.match(markup, /data-action="start-setup-voyage" disabled/);
-  assert.match(markup, /will not replace it/);
+  assert.match(markup, /data-action="start-setup-voyage"/);
+  assert.doesNotMatch(markup, /data-action="start-setup-voyage" disabled/);
+  assert.match(markup, /ask before replacing it/);
+});
+
+test('setup validation rejects invalid ship names', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const emptyDraft = defaultSetupDraft();
+    emptyDraft.shipName = '   ';
+    const longDraft = defaultSetupDraft();
+    longDraft.shipName = 'x'.repeat(SHIP_NAME_MAX_LENGTH + 1);
+    return {
+      empty: setupValidationErrors(emptyDraft),
+      longName: setupValidationErrors(longDraft),
+      emptyMarkup: setupScreenMarkup(emptyDraft, false),
+      longMarkup: setupScreenMarkup(longDraft, false)
+    };
+  })()`);
+
+  assert.match(result.empty.join(' '), /Ship name is required/);
+  assert.match(result.longName.join(' '), /Ship name must be 60 characters or fewer/);
+  assert.match(result.emptyMarkup, /Ship name is required/);
+  assert.match(result.emptyMarkup, /data-action="start-setup-voyage" disabled/);
+  assert.match(result.longMarkup, /Ship name must be 60 characters or fewer/);
+  assert.match(result.longMarkup, /data-action="start-setup-voyage" disabled/);
 });
 
 test('setup crew name validation trims and rejects invalid names', () => {
@@ -491,6 +515,220 @@ test('setup crew name errors render on setup screen', () => {
   assert.match(markup, /Crew 2 name duplicates Crew 1/);
   assert.match(markup, /Crew 3 name is required/);
   assert.match(markup, /role="alert"/);
+});
+
+test('start voyage blocks invalid setup without saving or publishing', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    appMode = 'setup';
+    setupDraft = defaultSetupDraft();
+    setupDraft.shipName = '   ';
+    setupDraft.crew[0].name = 'Mira';
+    setupDraft.crew[1].name = 'mira';
+    let renderCount = 0;
+    let renderedMarkup = '';
+    renderSetupScreen = () => {
+      renderCount += 1;
+      renderedMarkup = setupScreenMarkup(setupDraftForRender(), false);
+    };
+    render = () => { throw new Error('render should not run for invalid setup'); };
+    confirm = () => { throw new Error('confirm should not run for invalid setup'); };
+    const started = startSetupVoyage();
+    const duplicateMarkup = renderedMarkup;
+    setupDraft = defaultSetupDraft();
+    setupDraft.shipName = 'x'.repeat(SHIP_NAME_MAX_LENGTH + 1);
+    const longNameStarted = startSetupVoyage();
+    const longNameMarkup = renderedMarkup;
+    return {
+      started,
+      longNameStarted,
+      appMode,
+      renderCount,
+      duplicateMarkup,
+      longNameMarkup,
+      saved: localStorage.getItem('openSeaTracker'),
+      published: localStorage.getItem(PLAYER_STATE_KEY)
+    };
+  })()`);
+
+  assert.equal(result.started, false);
+  assert.equal(result.longNameStarted, false);
+  assert.equal(result.appMode, 'setup');
+  assert.equal(result.renderCount, 2);
+  assert.match(result.duplicateMarkup, /Ship name is required/);
+  assert.match(result.duplicateMarkup, /Crew 2 name duplicates Crew 1/);
+  assert.match(result.longNameMarkup, /Ship name must be 60 characters or fewer/);
+  assert.equal(result.saved, null);
+  assert.equal(result.published, null);
+});
+
+test('valid setup creates, saves, publishes, and enters tracker mode', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    appMode = 'setup';
+    setupDraft = defaultSetupDraft();
+    setupDraft.shipName = ' The Tide Needle ';
+    setupDraft.crewSize = 4;
+    setupDraft.crew = setupDraft.crew.slice(0, 4);
+    setupDraft.crew[0].name = ' Mira ';
+    setupDraft.crew[1].name = 'Jon';
+    setupDraft.crew[2].name = 'Pax';
+    setupDraft.crew[3].name = 'Rue';
+    setupDraft.crew.forEach((character) => {
+      SETUP_CREW_TRAIT_FIELDS.forEach(({field}) => {
+        character[field] = false;
+      });
+    });
+    setupDraft.crew[0].sailorPirateBackground = true;
+    setupDraft.crew[0].waterVehiclesProficiency = true;
+    setupDraft.crew[1].fishermanBackground = true;
+    setupDraft.crew[2].navigatorToolsProficiency = true;
+    setupDraft.crew[3].cartographerToolsProficiency = true;
+    render = () => {};
+    renderSetupScreen = () => { throw new Error('renderSetupScreen should not run for valid setup'); };
+    confirm = () => { throw new Error('confirm should not run without an existing save'); };
+    const created = createTrackerStateFromSetup(setupDraft);
+    const started = startSetupVoyage();
+    const saved = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const published = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      started,
+      appMode,
+      setupComplete: state.setupComplete,
+      createdShipName: created.shipName,
+      stateShipName: state.shipName,
+      savedShipName: saved.shipName,
+      publishedShipName: published.shipName,
+      stateCrewNames: state.crew.map((character) => character.name),
+      savedCrewNames: saved.crew.map((character) => character.name),
+      publishedCrewNames: published.crew.map((character) => character.name),
+      traits: state.crew.map((character) => ({
+        sailorPirateBackground: character.sailorPirateBackground,
+        fishermanBackground: character.fishermanBackground,
+        waterVehiclesProficiency: character.waterVehiclesProficiency,
+        navigatorToolsProficiency: character.navigatorToolsProficiency,
+        cartographerToolsProficiency: character.cartographerToolsProficiency
+      })),
+      plannedActions: state.plannedActions,
+      confirmedActions: state.confirmedActions,
+      overtimeKeys: Object.keys(state.overtimeExhaustion),
+      log: state.log
+    };
+  })()`);
+
+  assert.equal(result.started, true);
+  assert.equal(result.appMode, 'tracker');
+  assert.equal(result.setupComplete, true);
+  assert.equal(result.createdShipName, 'The Tide Needle');
+  assert.equal(result.stateShipName, 'The Tide Needle');
+  assert.equal(result.savedShipName, 'The Tide Needle');
+  assert.equal(result.publishedShipName, 'The Tide Needle');
+  assert.deepEqual(result.stateCrewNames, ['Mira', 'Jon', 'Pax', 'Rue']);
+  assert.deepEqual(result.savedCrewNames, ['Mira', 'Jon', 'Pax', 'Rue']);
+  assert.deepEqual(result.publishedCrewNames, ['Mira', 'Jon', 'Pax', 'Rue']);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.traits)), [
+    {
+      sailorPirateBackground: true,
+      fishermanBackground: false,
+      waterVehiclesProficiency: true,
+      navigatorToolsProficiency: false,
+      cartographerToolsProficiency: false
+    },
+    {
+      sailorPirateBackground: false,
+      fishermanBackground: true,
+      waterVehiclesProficiency: false,
+      navigatorToolsProficiency: false,
+      cartographerToolsProficiency: false
+    },
+    {
+      sailorPirateBackground: false,
+      fishermanBackground: false,
+      waterVehiclesProficiency: false,
+      navigatorToolsProficiency: true,
+      cartographerToolsProficiency: false
+    },
+    {
+      sailorPirateBackground: false,
+      fishermanBackground: false,
+      waterVehiclesProficiency: false,
+      navigatorToolsProficiency: false,
+      cartographerToolsProficiency: true
+    }
+  ]);
+  assert.equal(JSON.stringify(result.plannedActions), '{}');
+  assert.equal(JSON.stringify(result.confirmedActions), '{}');
+  assert.deepEqual(result.overtimeKeys, ['Mira', 'Jon', 'Pax', 'Rue']);
+  assert.match(result.log, /Started a new voyage aboard The Tide Needle/);
+});
+
+test('existing save confirmation controls setup overwrite', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    function prepareDraft(shipName) {
+      appMode = 'setup';
+      setupDraft = defaultSetupDraft();
+      setupDraft.shipName = shipName;
+      setupDraft.crew[0].name = 'Mira';
+      setupDraft.crew[1].name = 'Jon';
+    }
+    const oldSave = {...defaultState, day: 5, shipName: 'Saved Ship'};
+    const oldPlayer = {shipName: 'Published Ship', crew: [{name: 'Old Crew'}]};
+    localStorage.setItem('openSeaTracker', JSON.stringify(oldSave));
+    localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(oldPlayer));
+    render = () => {};
+    let renderSetupCount = 0;
+    renderSetupScreen = () => { renderSetupCount += 1; };
+    let cancelConfirmMessage = '';
+    confirm = (message) => {
+      cancelConfirmMessage = message;
+      return false;
+    };
+    prepareDraft('Cancelled Ship');
+    const cancelled = startSetupVoyage();
+    const cancelledSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const cancelledPlayer = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    const cancelledDraft = structuredClone(setupDraft);
+    const appModeAfterCancel = appMode;
+    let confirmMessage = '';
+    confirm = (message) => {
+      confirmMessage = message;
+      return true;
+    };
+    prepareDraft('Confirmed Ship');
+    const confirmed = startSetupVoyage();
+    const confirmedSave = JSON.parse(localStorage.getItem('openSeaTracker'));
+    const confirmedPlayer = JSON.parse(localStorage.getItem(PLAYER_STATE_KEY));
+    return {
+      cancelled,
+      appModeAfterCancel,
+      renderSetupCount,
+      cancelConfirmMessage,
+      cancelledSaveShipName: cancelledSave.shipName,
+      cancelledSaveDay: cancelledSave.day,
+      cancelledPlayerShipName: cancelledPlayer.shipName,
+      cancelledDraftShipName: cancelledDraft.shipName,
+      confirmed,
+      appMode,
+      confirmMessage,
+      confirmedSaveShipName: confirmedSave.shipName,
+      confirmedPlayerShipName: confirmedPlayer.shipName
+    };
+  })()`);
+
+  assert.equal(result.cancelled, false);
+  assert.equal(result.appModeAfterCancel, 'setup');
+  assert.equal(result.renderSetupCount, 1);
+  assert.match(result.cancelConfirmMessage, /replace the saved voyage/);
+  assert.equal(result.cancelledSaveShipName, 'Saved Ship');
+  assert.equal(result.cancelledSaveDay, 5);
+  assert.equal(result.cancelledPlayerShipName, 'Published Ship');
+  assert.equal(result.cancelledDraftShipName, 'Cancelled Ship');
+  assert.equal(result.confirmed, true);
+  assert.equal(result.appMode, 'tracker');
+  assert.match(result.confirmMessage, /replace the saved voyage/);
+  assert.equal(result.confirmedSaveShipName, 'Confirmed Ship');
+  assert.equal(result.confirmedPlayerShipName, 'Confirmed Ship');
 });
 
 test('setup crew size supports four through seven players', () => {

@@ -58,12 +58,13 @@ function renderSetupScreen() {
 
 function setupScreenMarkup(draft, hasSavedVoyage) {
   const savedNote = hasSavedVoyage
-    ? 'A saved voyage exists. This setup draft will not replace it until Start Voyage is enabled and confirmed.'
-    : 'No saved voyage exists. This setup draft is still not saved yet.';
-  const crewNameErrors = setupCrewNameValidationErrors(draft);
-  const crewNameStatus = crewNameErrors.length
-    ? `<div class="setup-validation" role="alert">${crewNameErrors.map((error) => `<div>${h(error)}</div>`).join('')}</div>`
-    : `<div class="setup-validation ok">Crew names are valid: required, trimmed, unique, and ${CREW_NAME_MAX_LENGTH} characters or fewer.</div>`;
+    ? 'A saved voyage exists. Starting this voyage will ask before replacing it.'
+    : 'No saved voyage exists. This setup draft is not saved until Start Voyage.';
+  const setupErrors = setupValidationErrors(draft);
+  const setupStatus = setupErrors.length
+    ? `<div class="setup-validation" role="alert">${setupErrors.map((error) => `<div>${h(error)}</div>`).join('')}</div>`
+    : `<div class="setup-validation ok">Setup is valid: ship name and active crew names are ready.</div>`;
+  const startDisabled = setupErrors.length ? ' disabled' : '';
   const crewSizeOptions = setupCrewSizeOptions()
     .map(
       (size) =>
@@ -107,7 +108,7 @@ function setupScreenMarkup(draft, hasSavedVoyage) {
           </label>
           <label>
             <span>Ship Name</span>
-            <input type="text" maxlength="${SHIP_NAME_MAX_LENGTH}" value="${h(draft.shipName)}" data-change-action="set-setup-field" data-field="shipName" />
+            <input type="text" maxlength="${SHIP_NAME_MAX_LENGTH}" required value="${h(draft.shipName)}" data-change-action="set-setup-field" data-field="shipName" />
           </label>
           <label>
             <span>Crew Size</span>
@@ -118,25 +119,29 @@ function setupScreenMarkup(draft, hasSavedVoyage) {
         </div>
         <div>
           <h2>Crew</h2>
-          ${crewNameStatus}
+          ${setupStatus}
           <div class="setup-crew-grid">${crewRows}</div>
         </div>
       </div>
       <div class="setup-actions">
         <button type="button" data-action="back-to-landing">Back to Landing</button>
         <button type="button" data-action="reset-setup-defaults">Reset Setup Defaults</button>
-        <button class="primary" type="button" data-action="start-setup-voyage" disabled>Start Voyage</button>
+        <button class="primary" type="button" data-action="start-setup-voyage"${startDisabled}>Start Voyage</button>
       </div>
       <div class="landing-note">
-        ${h(savedNote)} Start Voyage is intentionally disabled for this stage.
+        ${h(savedNote)} ${
+          setupErrors.length
+            ? 'Fix setup errors before starting.'
+            : 'Start Voyage will create and save this configured voyage.'
+        }
       </div>
     </div>
   </div>`;
 }
 
-function setupDraftForRender() {
+function setupDraftForRender(sourceDraft = setupDraft) {
   const defaults = defaultSetupDraft();
-  const draft = setupDraft && typeof setupDraft === 'object' ? setupDraft : {};
+  const draft = sourceDraft && typeof sourceDraft === 'object' ? sourceDraft : {};
   const draftCrew = Array.isArray(draft.crew) ? draft.crew : [];
   const crewSize = clampSetupCrewSize(draft.crewSize ?? (draftCrew.length || defaults.crewSize));
   const crew = Array.from({ length: crewSize }, (_, index) => {
