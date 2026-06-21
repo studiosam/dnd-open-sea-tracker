@@ -23,6 +23,127 @@ body {
   color: var(--text);
   line-height: 1.35;
 }
+.landing-active > header,
+.landing-active > #scoreboardPanel,
+.landing-active > .night-overtime-wrapper,
+.landing-active > main,
+.landing-active > #activityLogPanel,
+.landing-active > #crewSetupPanel,
+.landing-active > #devValidatorPanel {
+  display: none;
+}
+.landing-screen {
+  display: none;
+}
+.landing-active .landing-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(91, 185, 232, 0.18), transparent 28%),
+    radial-gradient(circle at 84% 12%, rgba(217, 174, 85, 0.14), transparent 30%),
+    linear-gradient(135deg, #06131d 0%, #0a2130 48%, #12384a 100%);
+}
+.landing-shell {
+  width: min(1120px, 100%);
+}
+.landing-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(91, 185, 232, 0.32);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(16, 40, 56, 0.92), rgba(10, 29, 41, 0.95)), var(--panel);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  padding: clamp(28px, 5vw, 64px);
+}
+.landing-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 24%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.026) 0 1px, transparent 1px 56px);
+}
+.landing-brand,
+.landing-subtitle,
+.landing-actions,
+.landing-note {
+  position: relative;
+}
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.landing-icon {
+  width: clamp(58px, 7vw, 92px);
+  height: clamp(58px, 7vw, 92px);
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.35));
+}
+.landing-kicker {
+  margin: 0 0 6px;
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.landing-brand h1 {
+  font-size: clamp(34px, 5vw, 68px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.landing-subtitle {
+  max-width: 800px;
+  margin: 24px 0 32px;
+  color: var(--muted);
+  font-size: clamp(18px, 2vw, 25px);
+}
+.landing-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.landing-action-button {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 20px;
+  text-align: left;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent), rgba(22, 56, 76, 0.92);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+.landing-action-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(18, 61, 85, 0.96);
+}
+.landing-action-button span {
+  color: var(--text);
+  font-size: clamp(20px, 2vw, 29px);
+  line-height: 1;
+}
+.landing-action-button small {
+  color: var(--muted);
+  font-size: clamp(13px, 1vw, 16px);
+  line-height: 1.3;
+}
+.landing-note {
+  margin-top: 22px;
+  padding: 13px 15px;
+  border: 1px solid rgba(91, 185, 232, 0.22);
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(10, 29, 41, 0.72);
+}
 header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
@@ -1718,6 +1839,15 @@ th:nth-child(4) {
   }
 }
 @media (max-width: 760px) {
+  .landing-active .landing-screen {
+    padding: 16px;
+  }
+  .landing-brand {
+    align-items: flex-start;
+  }
+  .landing-actions {
+    grid-template-columns: 1fr;
+  }
   header {
     align-items: flex-start;
     flex-direction: column;

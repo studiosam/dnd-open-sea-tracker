@@ -16,6 +16,7 @@ const defaultSailorPirateCrew = new Set(['Leopold', 'Toady']);
 // Migrations use this as a complete fallback when older saves are missing fields.
 const defaultState = {
   version: APP_VERSION,
+  setupComplete: true,
   day: 1,
   turn: 1,
   travelTicks: DEFAULT_TRAVEL_TICKS,
@@ -87,6 +88,7 @@ const defaultState = {
 let state = structuredClone(defaultState);
 let undoStack = [];
 let actionCommitSnapshot = null;
+let appMode = 'landing';
 
 // Undo is intentionally in-memory only. Saves and exports remain clean current-state snapshots.
 function pushUndo(label) {

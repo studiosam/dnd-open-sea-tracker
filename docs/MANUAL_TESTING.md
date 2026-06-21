@@ -97,11 +97,27 @@ Confirm:
 
 ---
 
-# 2. DM Screen Initial Load
+# 2. Landing Screen
 
 Open `open_sea_tracker.html`.
 
-On initial load, do not expect action assignment controls to be visible yet. Those are checked later after the tracker reaches the action-assignment phase.
+Confirm:
+
+- [ ] The landing screen appears before the DM tracker UI.
+- [ ] `Resume Current Voyage` is disabled if no save exists in this browser.
+- [ ] Opening the landing screen does not overwrite an existing saved voyage.
+- [ ] `Start a New Voyage` opens a valid tracker state.
+- [ ] `Resume Current Voyage` opens the saved tracker state when a save exists.
+- [ ] `Import Saved Voyage` opens the import file picker.
+- [ ] Normal tracker flow still works after leaving the landing screen.
+
+---
+
+# 3. DM Tracker Initial Load
+
+From the landing screen, choose `Start a New Voyage` or `Resume Current Voyage`.
+
+Do not expect action assignment controls to be visible yet. Those are checked later after the tracker reaches the action-assignment phase.
 
 Confirm:
 
@@ -121,7 +137,7 @@ Confirm:
 
 ---
 
-# 3. Player Screen Initial Load
+# 4. Player Screen Initial Load
 
 Open `player_view.html` in the same browser profile.
 
@@ -142,7 +158,7 @@ The player screen does not need to show every DM value. Hidden player informatio
 
 ---
 
-# 4. Reset to a Known Baseline
+# 5. Reset to a Known Baseline
 
 On the DM screen:
 
@@ -177,7 +193,7 @@ On the player screen:
 
 ---
 
-# 5. Reach the Action-Assignment Phase
+# 6. Reach the Action-Assignment Phase
 
 This section checks that the normal turn flow can reach the point where crew actions are assigned.
 
@@ -201,7 +217,7 @@ At the action-assignment phase, confirm:
 
 ---
 
-# 6. Complete a Simple Idle Turn
+# 7. Complete a Simple Idle Turn
 
 This section confirms that the basic turn loop works without special actions.
 
@@ -226,7 +242,7 @@ On the player screen:
 
 ---
 
-# 7. Navigate Action Test
+# 8. Navigate Action Test
 
 This section checks the navigation prompt, DC display, Course Meter behavior, and player Course State / Travel Remaining reveal.
 
@@ -255,7 +271,7 @@ On the player screen:
 
 ---
 
-# 8. Helm Action Test
+# 9. Helm Action Test
 
 This section checks travel progress from the Helm action.
 
@@ -281,7 +297,7 @@ On the player screen:
 
 ---
 
-# 9. Broken Mast Helm Behavior
+# 10. Broken Mast Helm Behavior
 
 This section checks that the app handles a broken mast without creating a normal Helm check.
 
@@ -299,7 +315,7 @@ On the DM screen:
 
 ---
 
-# 10. Broken Rudder Helm Behavior
+# 11. Broken Rudder Helm Behavior
 
 This section checks that the app handles a broken rudder without creating a normal Helm check.
 
@@ -318,7 +334,7 @@ On the DM screen:
 
 ---
 
-# 11. Bilge Sounding Rod and Player Knowledge
+# 12. Bilge Sounding Rod and Player Knowledge
 
 This section checks water visibility and Total Ingress reveal behavior.
 
@@ -348,7 +364,7 @@ On the player screen:
 
 ---
 
-# 12. Group Action Test
+# 13. Group Action Test
 
 This section checks that multi-crew actions are handled correctly.
 
@@ -378,7 +394,7 @@ On the player screen:
 
 ---
 
-# 13. Water Formula Test
+# 14. Water Formula Test
 
 This section checks that the water formula applies once and logs clearly.
 
@@ -399,7 +415,7 @@ On the player screen:
 
 ---
 
-# 14. Supplies and Inventory Actions
+# 15. Supplies and Inventory Actions
 
 This section checks player reveal behavior for supplies.
 
@@ -434,7 +450,7 @@ On the player screen:
 
 ---
 
-# 15. Scripted Scene Turn
+# 16. Scripted Scene Turn
 
 This section checks that scripted scene turns interrupt normal turn flow safely.
 
@@ -460,7 +476,7 @@ On the player screen:
 
 ---
 
-# 16. Player View Sync
+# 17. Player View Sync
 
 This section checks that the DM page publishes state to the player page.
 
@@ -484,7 +500,7 @@ Expected behavior:
 
 ---
 
-# 17. Export and Valid Import
+# 18. Export and Valid Import
 
 This section checks that valid save files can be exported and restored.
 
@@ -501,7 +517,7 @@ On the DM screen:
 
 ---
 
-# 18. Invalid Import
+# 19. Invalid Import
 
 This section checks that bad save files are rejected without damaging the current state.
 
@@ -528,7 +544,7 @@ Delete the temporary bad JSON file after the test if you do not need it.
 
 ---
 
-# 19. Prompt Escaping
+# 20. Prompt Escaping
 
 This section only needs to be run after changes to import validation, pending prompt rendering, or prompt display.
 
@@ -552,7 +568,7 @@ Delete the temporary test file after the test if you do not need it.
 
 ---
 
-# 20. Layout Smoke Test
+# 21. Layout Smoke Test
 
 DM screen:
 
@@ -574,7 +590,7 @@ Player screen:
 
 ---
 
-# 21. Final Pass Before Commit
+# 22. Final Pass Before Commit
 
 Before committing a major change:
 

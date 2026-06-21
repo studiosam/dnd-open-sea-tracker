@@ -1455,6 +1455,12 @@ function handleDelegatedClick(event) {
   const amount = () => Number(control.dataset.amount || 0);
   const index = () => Number(control.dataset.index || 0);
   switch (action) {
+    case 'start-new-voyage':
+      return startNewVoyage();
+    case 'resume-current-voyage':
+      return resumeCurrentVoyage();
+    case 'import-saved-voyage':
+      return importSavedVoyage();
     case 'undo-last-change':
       return undoLastChange();
     case 'save-state':

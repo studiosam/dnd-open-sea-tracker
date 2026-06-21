@@ -28,6 +28,11 @@ function syncFromInputs() {
 
 // Single render pass for the GM app. Any state change should eventually flow through here.
 function render() {
+  if (appMode === 'landing') {
+    renderLandingScreen();
+    return;
+  }
+  if (typeof document !== 'undefined') document.body?.classList.remove('landing-active');
   migrateState();
   pruneUnavailablePlannedActions();
   syncTravelDaysFromTicks();
@@ -66,6 +71,56 @@ function render() {
   renderUndoStatus();
   q('log').textContent = state.log;
   publishPlayerState();
+}
+
+function renderLandingScreen() {
+  const landing = q('landingScreen');
+  if (!landing) return;
+  if (typeof document !== 'undefined') document.body?.classList.add('landing-active');
+  landing.innerHTML = landingScreenMarkup(Boolean(readSavedVoyageState()));
+}
+
+function landingScreenMarkup(hasSavedVoyage) {
+  const resumeDisabled = hasSavedVoyage ? '' : ' disabled';
+  const resumeNote = hasSavedVoyage
+    ? 'A saved voyage is available in this browser.'
+    : 'No saved voyage found in this browser.';
+  return `<div class="landing-shell">
+    <div class="landing-card">
+      <div class="landing-brand">
+        <img class="landing-icon" src="assets/favicon.svg" alt="" />
+        <div>
+          <p class="landing-kicker">Tabletop voyage control</p>
+          <h1>Open Sea Encounter Tracker</h1>
+        </div>
+      </div>
+      <p class="landing-subtitle">
+        Run dangerous sea voyages with ship damage, water ingress, crew labor, supplies,
+        navigation, hidden information, and player-facing ship status.
+      </p>
+      <div class="landing-actions">
+        <button class="landing-action-button primary" type="button" data-action="start-new-voyage">
+          <span>Start a New Voyage</span>
+          <small>Start from the default ship, crew, supplies, and event flow.</small>
+        </button>
+        <button class="landing-action-button" type="button" data-action="resume-current-voyage"${resumeDisabled}>
+          <span>Resume Current Voyage</span>
+          <small>${h(resumeNote)}</small>
+        </button>
+        <button class="landing-action-button" type="button" data-action="import-saved-voyage">
+          <span>Import Saved Voyage</span>
+          <small>Load a previously exported tracker JSON file.</small>
+        </button>
+        <button class="landing-action-button" type="button" disabled>
+          <span>Load Demo Voyage</span>
+          <small>Demo mode coming soon.</small>
+        </button>
+      </div>
+      <div class="landing-note">
+        Saves are stored locally in this browser. Export backups before clearing browser data.
+      </div>
+    </div>
+  </div>`;
 }
 
 function waterScoreClass() {

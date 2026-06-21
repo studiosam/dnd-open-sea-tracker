@@ -88,6 +88,56 @@ function chooseImportFile() {
   input.click();
 }
 
+function readSavedVoyageState() {
+  const raw = localStorage.getItem('openSeaTracker') || localStorage.getItem('openSeaTrackerDraft');
+  if (!raw) return null;
+  try {
+    return normalizeImportedState(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function enterTrackerMode() {
+  appMode = 'tracker';
+  if (typeof document !== 'undefined') document.body?.classList.remove('landing-active');
+}
+
+function startNewVoyage() {
+  if (
+    readSavedVoyageState() &&
+    !confirm('Start a new voyage? This will replace the saved voyage in this browser.')
+  ) {
+    return;
+  }
+  clearActionCommitSnapshot();
+  undoStack = [];
+  state = structuredClone(defaultState);
+  migrateState();
+  log('Started a new voyage.');
+  saveStateSnapshot();
+  enterTrackerMode();
+  render();
+}
+
+function resumeCurrentVoyage() {
+  const savedState = readSavedVoyageState();
+  if (!savedState) {
+    renderLandingScreen();
+    return;
+  }
+  clearActionCommitSnapshot();
+  undoStack = [];
+  state = savedState;
+  log('Resumed the current voyage from this browser.');
+  enterTrackerMode();
+  render();
+}
+
+function importSavedVoyage() {
+  chooseImportFile();
+}
+
 // Import restores a previously exported JSON state, then runs migration for compatibility.
 function importStateFile(file) {
   if (!file) return;
@@ -107,6 +157,7 @@ function importStateFile(file) {
       state = normalizedState;
       log(`Imported tracker state from ${file.name}.`);
       saveStateSnapshot();
+      enterTrackerMode();
       render();
     } catch (error) {
       alert(`Import failed: ${error.message}`);
@@ -188,6 +239,7 @@ function validateImportedStatePayload(importedState) {
   validateImportedTurnLedger(importedState.turnLedger, errors);
   validateImportedRestMealStatus(importedState.restMealStatus, errors);
   validateImportedStartedGroups(importedState.startedGroups, errors);
+  validateImportedBoolean(importedState.setupComplete, 'Setup complete flag', errors);
   if (errors.length) {
     throw new Error(`Import validation failed: ${errors.slice(0, 5).join(' ')}`);
   }
@@ -678,12 +730,13 @@ function playerKnownWaterLevel() {
 }
 
 function loadState() {
-  const raw = localStorage.getItem('openSeaTracker') || localStorage.getItem('openSeaTrackerDraft');
-  if (raw) {
+  const savedState = readSavedVoyageState();
+  if (savedState) {
     pushUndo('Loaded saved state');
     clearActionCommitSnapshot();
-    state = JSON.parse(raw);
+    state = savedState;
     migrateState();
+    enterTrackerMode();
     render();
   }
 }
@@ -693,6 +746,7 @@ function resetState() {
     pushUndo('Reset tracker');
     clearActionCommitSnapshot();
     state = structuredClone(defaultState);
+    enterTrackerMode();
     render();
   }
 }
@@ -1197,6 +1251,7 @@ function migrateState() {
   const hadTravelTicks = Object.prototype.hasOwnProperty.call(incomingState, 'travelTicks');
   state = { ...structuredClone(defaultState), ...incomingState };
   state.version = APP_VERSION;
+  state.setupComplete = state.setupComplete !== false;
   const parsedTravelTicks = Number(state.travelTicks);
   state.travelTicks =
     hadTravelTicks && Number.isFinite(parsedTravelTicks)

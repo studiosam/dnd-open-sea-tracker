@@ -298,6 +298,57 @@ test('import normalization rejects unknown action references', () => {
   assert.match(result, /Unknown planned action/);
 });
 
+test('landing screen exposes startup actions safely', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`({
+    noSave: landingScreenMarkup(false),
+    withSave: landingScreenMarkup(true)
+  })`);
+  assert.match(result.noSave, /Start a New Voyage/);
+  assert.match(result.noSave, /data-action="start-new-voyage"/);
+  assert.match(result.noSave, /data-action="resume-current-voyage" disabled/);
+  assert.match(result.noSave, /No saved voyage found in this browser/);
+  assert.match(result.noSave, /data-action="import-saved-voyage"/);
+  assert.doesNotMatch(result.withSave, /data-action="resume-current-voyage" disabled/);
+  assert.match(result.withSave, /A saved voyage is available in this browser/);
+});
+
+test('old saves migrate as setup complete', () => {
+  const tracker = loadTrackerContext();
+  const setupComplete = tracker.evaluate(`
+    normalizeImportedState({ crew: structuredClone(defaultState.crew) }).setupComplete
+  `);
+  assert.equal(setupComplete, true);
+});
+
+test('starting a new voyage creates and saves default tracker state', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    render = () => {};
+    appMode = 'landing';
+    state = structuredClone(defaultState);
+    state.day = 7;
+    startNewVoyage();
+    const saved = JSON.parse(localStorage.getItem('openSeaTracker'));
+    return {
+      appMode,
+      stateDay: state.day,
+      stateTurn: state.turn,
+      savedDay: saved.day,
+      savedTurn: saved.turn,
+      setupComplete: state.setupComplete,
+      log: state.log
+    };
+  })()`);
+  assert.equal(result.appMode, 'tracker');
+  assert.equal(result.stateDay, 1);
+  assert.equal(result.stateTurn, 1);
+  assert.equal(result.savedDay, 1);
+  assert.equal(result.savedTurn, 1);
+  assert.equal(result.setupComplete, true);
+  assert.match(result.log, /Started a new voyage/);
+});
+
 test('DM controls use delegated handlers with full dispatcher coverage', () => {
   const files = ['open_sea_tracker.html', 'js/tracker_render.js', 'js/tracker_gameplay.js'];
   const combined = files.map(readProjectFile).join('\n');
