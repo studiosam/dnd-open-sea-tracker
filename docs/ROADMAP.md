@@ -8,9 +8,11 @@ The project began as the Marrowwind voyage tracker for one campaign. The long-te
 
 # Current Project Status
 
-The project is a working MVP.
+The project is a working MVP and public demo.
 
-The core tracker can now be used at the table with a DM screen and a player-facing screen. It has automated tests, formatting checks, syntax checks, GitHub Actions CI, manual browser testing documentation, import/export support, save protection, a functional new-voyage setup flow, README screenshots, and GitHub Pages deployment.
+The core tracker can now be used at the table with a DM screen and a player-facing screen. It has automated tests, formatting checks, syntax checks, GitHub Actions CI, manual browser testing documentation, import/export support, save protection, a functional new-voyage setup flow, GitHub Pages deployment, README screenshots, an `Open Player View` control, and a no-save Demo Mode.
+
+The README, roadmap, and manual testing checklist have been updated for Demo Mode. The next step is a focused browser testing pass using `docs/MANUAL_TESTING.md`.
 
 ---
 
@@ -29,8 +31,6 @@ The core tracker can now be used at the table with a DM screen and a player-faci
 - Required checks and saves.
 - Water ingress tracking.
 - Course Meter and travel tracking.
-- Repair-material blocking for repair actions.
-- `Salvage Lumber` action for recovering repair supplies.
 - Player knowledge and hidden information.
 - Player-safe state publishing.
 - Player view auto-sync through browser storage.
@@ -43,7 +43,9 @@ The core tracker can now be used at the table with a DM screen and a player-faci
 - README screenshots.
 - GitHub Pages deployment.
 - Root `index.html` redirect/loading page.
-- DM tracker `Open Player View` link after tracker launch.
+- DM tracker `Open Player View` link.
+- No-save Demo Mode.
+- Demo-to-real-save conversion.
 
 ---
 
@@ -122,19 +124,69 @@ Completed items:
 
 ---
 
+# Completed Demo Work
+
+## Demo Mode: Temporary No-Save Sandbox — Complete
+
+Completed items:
+
+- Added `Load Demo Voyage` to the landing screen.
+- Used the existing default Marrowwind starting state.
+- Entered tracker mode immediately from Demo Mode.
+- Published player-safe state so the player view works.
+- Avoided writing demo state to the normal saved-voyage slot automatically.
+- Marked demo-created tracker state with demo mode.
+- Displayed a visible DM-side Demo Mode banner.
+- Preserved the existing real saved voyage when loading demo.
+- Kept `Resume Current Voyage` pointed at the real saved voyage.
+- Allowed export from Demo Mode.
+- Added tests for demo loading and save preservation.
+
+## Demo Save Conversion — Complete
+
+Completed items:
+
+- Updated normal save behavior while in Demo Mode.
+- Added confirmation before converting a demo voyage into a real saved voyage.
+- Cancelled demo save leaves the real save untouched.
+- Confirmed demo save clears demo mode.
+- Confirmed demo save writes to the normal saved-voyage slot.
+- Confirmed demo save publishes player state.
+- Confirmed demo save removes the demo banner.
+- Added tests for cancelled and confirmed demo-save conversion.
+
+## Manual Testing Coverage for Demo Mode — Complete
+
+Completed items:
+
+- Added Demo Mode checks to `docs/MANUAL_TESTING.md`.
+- Added landing-screen check for `Load Demo Voyage`.
+- Added demo banner checks.
+- Added player view checks for demo data.
+- Added protection checks for existing real saves.
+- Added demo save-conversion checks.
+- Added export/import checks for demo behavior.
+- Removed Demo Mode from future-expansion testing notes.
+
+---
+
 # Immediate Priorities
 
 These are the next practical steps before larger feature systems.
 
 ## 1. Focused Manual Browser Testing
 
-Status: In Progress
+Status: Next
 
 Use `docs/MANUAL_TESTING.md` to test the current app in a real browser.
 
 Focus areas:
 
 - Landing screen.
+- Load Demo Voyage.
+- Demo Mode banner.
+- Demo Mode save protection.
+- Demo-to-real-save conversion.
 - New voyage setup.
 - Setup validation.
 - Existing-save overwrite protection.
@@ -142,9 +194,7 @@ Focus areas:
 - Import saved voyage.
 - DM tracker load.
 - Player view sync.
-- DM tracker `Open Player View` link.
-- Repair-material blocking.
-- `Salvage Lumber` above/below-deck behavior.
+- `Open Player View` button.
 - GitHub Pages hosted behavior.
 - Water visibility rules.
 - Navigate reveal behavior.
@@ -166,16 +216,18 @@ Only fix issues that surface during manual testing.
 
 Do not add new feature work during a bug-fix pass unless the fix clearly requires it.
 
-## 3. Keep Documentation Current
+## 3. Clean Up Old Scratch Notes
 
-Status: Ongoing
+Status: Next Cleanup
 
-Review old scratch/staging files before each new feature phase and remove or archive anything that is no longer a source of truth.
+Review old scratch/staging files and remove or archive anything that is no longer a source of truth.
 
-Recently completed:
+Known items:
 
-- Removed obsolete `docs/todo.txt` after preserving the skeleton-helper backlog in this roadmap.
-- Pruned low-risk stale code left by earlier UI iterations.
+- Delete the completed landing/setup staging file if it still exists.
+- Review `docs/todo.txt`.
+- Move any still-useful item into this roadmap.
+- Delete obsolete scratch notes after useful content is preserved.
 
 Reason:
 
@@ -183,63 +235,13 @@ The roadmap should be the main planning document. Loose scratch notes should not
 
 ---
 
-# Next Feature Phase: Demo and First-Time Use
+# Next Feature Phase: Starting Presets and First-Time Use
 
-The setup flow works. The next work should make the live app easy to try without requiring someone to configure a real voyage first.
+The setup flow and Demo Mode now exist. The next feature work should turn the setup screen from a single default configuration into a small set of useful starting choices.
 
-## 1. Demo Mode: Temporary No-Save Sandbox
+## 1. Starting Presets
 
-Status: Next Feature
-
-Goal:
-
-Add a `Load Demo Voyage` option that lets someone try the tracker quickly without replacing a real saved voyage.
-
-Recommended first version:
-
-- Add `Load Demo Voyage` to the landing screen.
-- Use the existing Marrowwind/default initial state.
-- Enter tracker mode immediately.
-- Publish player-safe state so the player screen works.
-- Do not write to the normal saved-voyage slot automatically.
-- Mark the tracker state as demo mode.
-- Show a visible DM-side banner: `Demo Mode — changes are temporary unless saved.`
-- Allow export.
-- Decide whether manual `Save` should convert the demo into a normal saved voyage after confirmation.
-
-Important behavior:
-
-- Loading a demo should not overwrite an existing save.
-- Loading a demo should not require overwrite confirmation because it should not touch the normal save slot.
-- Refreshing should not be treated as a reliable way to preserve the demo unless the DM explicitly saves or exports it.
-
-Reason:
-
-This makes the GitHub Pages version useful immediately and gives a fast way to test the UI.
-
-## 2. Demo Save Conversion
-
-Status: Follow-Up to Demo Mode
-
-Goal:
-
-Decide what happens if the DM clicks `Save` while in demo mode.
-
-Recommended behavior:
-
-- Prompt: `Save this demo voyage as your current saved voyage?`
-- If confirmed, write to the normal save slot.
-- Clear `demoMode`.
-- Log that the demo was saved as a real voyage.
-- If cancelled, remain in demo mode and do not overwrite the current save.
-
-Reason:
-
-Demo mode should be safe by default but not a dead end.
-
-## 3. Starting Presets
-
-Status: Not Started
+Status: Next Feature After Manual Testing
 
 Goal:
 
@@ -269,7 +271,11 @@ Each preset could define:
 
 Keep this limited at first. Do not build custom event-table editing during the first preset pass.
 
-## 4. Setup Polish
+Reason:
+
+Presets are the bridge between a campaign-specific Marrowwind tracker and a reusable sea-travel tool.
+
+## 2. Setup Polish
 
 Status: Not Started
 
@@ -279,6 +285,7 @@ Possible improvements:
 - better visual grouping of background/proficiency traits.
 - short help text explaining which traits affect which actions.
 - optional collapse/expand for advanced fields.
+- clearer difference between preset selection and custom fields.
 
 Do not add advanced mechanical setup yet unless presets require it.
 
@@ -571,6 +578,7 @@ Possible docs:
 - player knowledge rules.
 - event table explanation.
 - setup/preset explanation.
+- demo-mode behavior.
 
 ## 3. Product Packaging and Demo Strategy
 
@@ -633,21 +641,20 @@ These are valid ideas, but they should not be built until the current roadmap it
 
 Use this order unless a table need forces something else:
 
-1. Finish focused manual browser testing.
+1. Run focused manual browser testing.
 2. Fix any manual test failures.
-3. Keep docs current as features and decisions change.
-4. Add temporary no-save Demo Mode.
-5. Add demo save-conversion behavior if needed.
-6. Add starting presets.
-7. Move Open Sea Events into structured table data.
-8. Add built-in event table selector.
-9. Add player-view time-of-day visual themes.
-10. Add player-view turn-advance overlay.
-11. Improve player view layout/presentation.
-12. Add save slots.
-13. Improve structured turn history.
-14. Add scenario/rules documentation.
-15. Plan product packaging and public identity.
+3. Clean up completed scratch/staging docs.
+4. Add starting presets.
+5. Add setup polish that presets require.
+6. Move Open Sea Events into structured table data.
+7. Add built-in event table selector.
+8. Add player-view time-of-day visual themes.
+9. Add player-view turn-advance overlay.
+10. Improve player view layout/presentation.
+11. Add save slots.
+12. Improve structured turn history.
+13. Add scenario/rules documentation.
+14. Plan product packaging and public identity.
 
 ---
 

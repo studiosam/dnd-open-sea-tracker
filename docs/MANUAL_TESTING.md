@@ -12,6 +12,7 @@ Use this checklist after changes that affect:
 - Import/export
 - localStorage
 - Setup/start state
+- Demo Mode
 - Major styling or layout
 
 Do not use this as an exhaustive QA document. It is a browser smoke test. It should stay practical enough to run in about 5 to 10 minutes for a normal change, with the setup sections added when startup behavior changes.
@@ -45,8 +46,7 @@ Recommended browsers:
 Recommended local setup:
 
 - Open the DM screen: `open_sea_tracker.html`
-- Start, resume, or import a voyage.
-- Use **Open Player View** in the DM tracker header to open `player_view.html`.
+- Open the player screen: `player_view.html`
 - Open both pages in the same browser profile so localStorage sync works.
 - Open DevTools Console on both pages.
 
@@ -112,17 +112,114 @@ Confirm:
 - [ ] The favicon appears in the browser tab.
 - [ ] The landing screen is visible.
 - [ ] `Start a New Voyage` is visible and enabled.
+- [ ] `Load Demo Voyage` is visible and enabled.
 - [ ] `Import Saved Voyage` is visible and enabled.
 - [ ] `Resume Current Voyage` is visible.
 - [ ] If no saved voyage exists in this browser profile, `Resume Current Voyage` is disabled or clearly unavailable.
 - [ ] If a saved voyage exists in this browser profile, `Resume Current Voyage` is enabled.
-- [ ] `Open Player View` is not shown on the landing screen.
 - [ ] The tracker screen is not shown until a voyage is started, resumed, or imported.
 - [ ] The DevTools Console shows no serious console errors.
 
+Optional hosted check:
+
+- [ ] If testing GitHub Pages, open the root site URL and confirm it redirects to the DM tracker.
+- [ ] Confirm the root redirect page does not show broken styles or missing project-file errors.
+
 ---
 
-# 3. Start a New Voyage Setup Flow
+# 3. Demo Mode No-Save Sandbox
+
+Use this section to confirm that Demo Mode lets a visitor try the app without replacing a real saved voyage.
+
+## Demo Load
+
+From the landing screen:
+
+- [ ] Click `Load Demo Voyage`.
+- [ ] Confirm the app enters tracker mode immediately without opening setup.
+- [ ] Confirm a visible DM-side Demo Mode banner appears.
+- [ ] Confirm the banner text explains that changes are temporary unless saved.
+- [ ] Confirm the default Marrowwind ship name appears.
+- [ ] Confirm the default Marrowwind crew appear.
+- [ ] Confirm the activity log records that the demo voyage was loaded.
+- [ ] Confirm the DevTools Console shows no serious console errors.
+
+Expected behavior:
+
+- Demo Mode should not require setup.
+- Demo Mode should not ask for overwrite confirmation when loading.
+- Demo Mode should not save to the normal saved-voyage slot automatically.
+
+## Demo Player View
+
+With the demo loaded on the DM screen:
+
+- [ ] Click `Open Player View`.
+- [ ] Confirm `player_view.html` opens in a new tab.
+- [ ] Confirm the player view receives demo data.
+- [ ] Confirm the player view shows the default ship name and crew.
+- [ ] Confirm player-hidden values remain hidden according to the normal visibility rules.
+- [ ] Confirm the DM-side Demo Mode banner does not appear on the player view.
+
+## Demo Does Not Overwrite Existing Save
+
+Use this section when a real saved voyage already exists.
+
+Before loading the demo:
+
+- [ ] Create or resume a real saved voyage.
+- [ ] Note the ship name, day, turn, and at least one crew name.
+- [ ] Return to the landing screen or reload the DM page.
+
+Then:
+
+- [ ] Click `Load Demo Voyage`.
+- [ ] Confirm the demo loads.
+- [ ] Do not click `Save`.
+- [ ] Return to the landing screen or reload the DM page.
+- [ ] Click `Resume Current Voyage`.
+- [ ] Confirm the original real saved voyage resumes.
+- [ ] Confirm the real saved voyage was not replaced by the demo.
+
+Expected behavior:
+
+- Loading demo should not alter the real saved voyage.
+- `Resume Current Voyage` should ignore an unsaved demo and resume the real saved voyage.
+
+## Demo Save Conversion
+
+With Demo Mode loaded:
+
+- [ ] Click `Save`.
+- [ ] Confirm a warning appears before converting the demo into the current saved voyage.
+- [ ] Cancel the warning.
+- [ ] Confirm the app remains in Demo Mode.
+- [ ] Confirm the Demo Mode banner remains visible.
+- [ ] Confirm the existing real save was not overwritten.
+- [ ] Click `Save` again.
+- [ ] Confirm the warning.
+- [ ] Confirm the demo is saved as the current real voyage.
+- [ ] Confirm the Demo Mode banner disappears.
+- [ ] Confirm the activity log records that the demo was saved as a real voyage.
+- [ ] Return to landing or reload the DM page.
+- [ ] Click `Resume Current Voyage`.
+- [ ] Confirm the saved converted voyage resumes.
+
+## Demo Export and Import
+
+With Demo Mode loaded:
+
+- [ ] Click `Export`.
+- [ ] Confirm a JSON file downloads.
+- [ ] Reset or return to landing.
+- [ ] Import the exported demo JSON.
+- [ ] Confirm the import succeeds.
+- [ ] Confirm imported state is treated as a normal usable voyage.
+- [ ] Confirm the imported state does not corrupt existing tracker behavior.
+
+---
+
+# 4. Start a New Voyage Setup Flow
 
 From the landing screen:
 
@@ -147,7 +244,7 @@ Expected behavior:
 
 ---
 
-# 4. Setup Validation
+# 5. Setup Validation
 
 On the setup screen:
 
@@ -179,7 +276,7 @@ Expected behavior:
 
 ---
 
-# 5. Setup Back and Reset Save Protection
+# 6. Setup Back and Reset Save Protection
 
 Use this section when a saved voyage already exists.
 
@@ -209,7 +306,7 @@ Expected behavior:
 
 ---
 
-# 6. Successful Start Voyage
+# 7. Successful Start Voyage
 
 From the setup screen:
 
@@ -222,9 +319,7 @@ From the setup screen:
 - [ ] Confirm the custom ship name appears on the DM screen.
 - [ ] Confirm the active crew names appear on the DM screen.
 - [ ] Confirm the activity log records that a new voyage was started.
-- [ ] Confirm `Open Player View` is visible in the DM tracker header.
-- [ ] Click `Open Player View`.
-- [ ] Confirm `player_view.html` opens in a new tab.
+- [ ] Open or refresh `player_view.html`.
 - [ ] Confirm the custom ship name appears on the player screen.
 - [ ] Confirm the active crew names appear on the player screen.
 - [ ] Confirm hidden player information remains hidden.
@@ -236,7 +331,7 @@ Optional trait check:
 
 ---
 
-# 7. Existing Save Overwrite Protection
+# 8. Existing Save Overwrite Protection
 
 Create and save a voyage first.
 
@@ -265,9 +360,9 @@ Expected behavior:
 
 ---
 
-# 8. Player Screen Initial Load
+# 9. Player Screen Initial Load
 
-Open `player_view.html` in the same browser profile after a voyage has been started, resumed, or imported. Prefer using **Open Player View** from the DM tracker header.
+Open `player_view.html` in the same browser profile after a voyage has been started, resumed, or imported.
 
 Confirm:
 
@@ -287,7 +382,7 @@ The player screen does not need to show every DM value. Hidden player informatio
 
 ---
 
-# 9. Resume Current Voyage
+# 10. Resume Current Voyage
 
 Use this section after a voyage has been successfully started and saved.
 
@@ -310,7 +405,7 @@ On the player screen:
 
 ---
 
-# 10. Reset to a Known Baseline
+# 11. Reset to a Known Baseline
 
 Use this after entering tracker mode.
 
@@ -347,7 +442,7 @@ On the player screen:
 
 ---
 
-# 11. Reach the Action-Assignment Phase
+# 12. Reach the Action-Assignment Phase
 
 This section checks that the normal turn flow can reach the point where crew actions are assigned.
 
@@ -371,7 +466,7 @@ At the action-assignment phase, confirm:
 
 ---
 
-# 12. Complete a Simple Idle Turn
+# 13. Complete a Simple Idle Turn
 
 This section confirms that the basic turn loop works without special actions.
 
@@ -396,7 +491,7 @@ On the player screen:
 
 ---
 
-# 13. Navigate Action Test
+# 14. Navigate Action Test
 
 This section checks the navigation prompt, DC display, Course Meter behavior, and player Course State and travel reveal.
 
@@ -426,7 +521,7 @@ On the player screen:
 
 ---
 
-# 14. Helm Action Test
+# 15. Helm Action Test
 
 This section checks travel progress from the Helm action.
 
@@ -463,7 +558,7 @@ Broken rudder behavior:
 
 ---
 
-# 15. Bilge Rod and Player Knowledge
+# 16. Bilge Rod and Player Knowledge
 
 On the DM screen:
 
@@ -485,7 +580,7 @@ On the player screen:
 
 ---
 
-# 16. Two-Person and Group Actions
+# 17. Two-Person and Group Actions
 
 On the DM screen:
 
@@ -504,7 +599,7 @@ On the player screen:
 
 ---
 
-# 17. Fishing Trait Check
+# 18. Fishing Trait Check
 
 Use this section if setup background/proficiency changes touched Fisherman behavior.
 
@@ -524,7 +619,7 @@ On the DM screen:
 
 ---
 
-# 18. Water Update
+# 19. Water Update
 
 On the DM screen:
 
@@ -543,7 +638,7 @@ On the player screen:
 
 ---
 
-# 19. Supplies and Inventory Actions
+# 20. Supplies and Inventory Actions
 
 On the DM screen:
 
@@ -553,17 +648,6 @@ On the DM screen:
 - [ ] Repeat with fresh water.
 - [ ] Repeat with repair supplies.
 - [ ] Confirm each inventory action logs correctly.
-- [ ] Set Repair Supplies to 0.
-- [ ] Confirm repair actions are unavailable or cannot be confirmed.
-- [ ] Restore or add Repair Supplies.
-- [ ] Confirm repair actions become available when their other requirements are met.
-- [ ] Assign a crew member to `Salvage Lumber`.
-- [ ] Confirm the above/below-deck checkbox appears for that action.
-- [ ] Leave the checkbox unchecked and confirm the action is treated as above deck.
-- [ ] Complete `Salvage Lumber`.
-- [ ] Confirm Repair Supplies increase by 2.
-- [ ] If testing flooding penalties, repeat with the below-deck checkbox checked and water at cargo-hold/waist-deep levels.
-- [ ] Confirm below-deck flooding adds the expected extra turn and/or Labor penalty.
 
 On the player screen:
 
@@ -572,7 +656,7 @@ On the player screen:
 
 ---
 
-# 20. Scripted Scene Turn
+# 21. Scripted Scene Turn
 
 This section checks that scripted scene turns interrupt normal turn flow safely.
 
@@ -597,7 +681,7 @@ On the player screen:
 
 ---
 
-# 21. Export and Import
+# 22. Export and Import
 
 ## Valid Export/Import
 
@@ -635,7 +719,7 @@ Then:
 
 ---
 
-# 22. Prompt Escaping
+# 23. Prompt Escaping
 
 This checks that imported or manually created prompt text is displayed safely.
 
@@ -654,7 +738,7 @@ Then:
 
 ---
 
-# 23. Player View Sync
+# 24. Player View Sync
 
 With both pages open:
 
@@ -676,7 +760,7 @@ Expected behavior:
 
 ---
 
-# 24. Layout Smoke Test
+# 25. Layout Smoke Test
 
 DM landing/setup screens:
 
@@ -704,7 +788,7 @@ Player screen:
 
 ---
 
-# 25. Final Pass Before Commit
+# 26. Final Pass Before Commit
 
 Before committing a major change:
 
@@ -723,9 +807,7 @@ When presets, custom event tables, save slots, or skeleton helpers are added, ex
 Current future checklist sections to add later:
 
 - Starting presets beyond the current default voyage.
-- Demo mode.
 - Built-in event table selector.
 - Custom event table editor.
 - Temporary skeleton helpers.
 - Save slots.
-- GitHub Pages deployment.

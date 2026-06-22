@@ -12,12 +12,27 @@ This project is currently built around the Marrowwind voyage, but the long-term 
 
 This project is a working MVP.
 
+---
+
+# Live Version
+
+Open the hosted version here:
+
+```text
+https://studiosam.github.io/dnd-open-sea-tracker/
+```
+
+The root page redirects to the DM tracker. Once a voyage is active, use **Open Player View** in the DM header to open the player-facing screen.
+
+---
+
 Current features include:
 
 - DM-facing tracker screen
 - Player-facing display screen
 - Startup landing screen
 - New voyage setup screen
+- Temporary no-save Demo Mode
 - DM tracker link to manually open the player view
 - Configurable ship name
 - Configurable crew size
@@ -62,6 +77,7 @@ Choose one of the startup actions:
 - **Start a New Voyage**: opens the setup screen.
 - **Resume Current Voyage**: resumes the saved voyage stored in this browser.
 - **Import Saved Voyage**: imports a previously exported tracker `.json` file.
+- **Load Demo Voyage**: opens a temporary default Marrowwind voyage without replacing the saved browser voyage.
 
 If no saved voyage exists in the current browser profile, **Resume Current Voyage** should be unavailable.
 
@@ -127,6 +143,7 @@ No server or build step is required. The app can be opened directly in a browser
 
 ## Main Pages
 
+- `index.html` - GitHub Pages root redirect/loading page.
 - `open_sea_tracker.html` - DM-facing tracker.
 - `player_view.html` - player-facing display for a second monitor.
 
@@ -138,7 +155,7 @@ No server or build step is required. The app can be opened directly in a browser
 - `js/tracker_render.js` - main DM render dispatcher and tracker-screen rendering.
 - `js/tracker_gameplay.js` - DM actions, prompts, turn flow, event handlers, meals, and overtime handlers.
 - `js/tracker_persistence.js` - save/load, player-state publishing, validation, migration, import/export, and labels.
-- `js/tracker_setup.js` - setup-mode behavior and setup-to-state creation.
+- `js/tracker_setup.js` - landing, setup, demo-mode behavior, and setup-to-state creation.
 - `js/tracker.js` - small DM tracker bootstrap loaded after the support scripts.
 - `js/player_view.js` - player screen rendering and sync logic.
 
@@ -149,7 +166,7 @@ No server or build step is required. The app can be opened directly in a browser
 
 ## Tests and Tooling
 
-- `tests/` - Node test suite for tracker rules, import validation, event binding coverage, setup flow, save-overwrite protection, player view behavior, and startup behavior.
+- `tests/` - Node test suite for tracker rules, import validation, event binding coverage, setup flow, demo mode, save-overwrite protection, player view behavior, and startup behavior.
 - `package.json` - npm scripts for formatting, syntax checks, CI, and tests.
 - `.github/workflows/ci.yml` - GitHub Actions workflow.
 - `.prettierrc` - Prettier formatting configuration.
@@ -162,6 +179,7 @@ No server or build step is required. The app can be opened directly in a browser
 - `docs/ROADMAP.md` - development roadmap.
 - `docs/design_document.txt` - system design notes and turn structure.
 - `docs/MarrowWindActions.txt` - current action reference.
+- `docs/CHANGELOG.md` - practical current-state history notes.
 
 ---
 
@@ -229,6 +247,9 @@ The formal test suite loads the browser scripts in a Node VM and checks:
 - Old save migration
 - New voyage creation
 - Setup-created player state
+- Demo Mode no-save behavior
+- Demo save conversion behavior
+- DM tracker Open Player View link
 - Player travel rounding
 - Navigate reveal behavior
 - Water visibility behavior
@@ -271,9 +292,22 @@ Opens the import flow for a previously exported tracker `.json` file.
 
 The import uses validation and migration before replacing the current state.
 
-## Demo Mode
+## Load Demo Voyage
 
-Demo mode is planned but not part of the current core flow unless implemented in the app.
+Opens a temporary default Marrowwind voyage immediately.
+
+Demo Mode is intended for trying the app, testing the player view, or showing the tracker without configuring a real voyage. It uses the normal default Marrowwind starting state and enters the tracker screen without going through setup.
+
+Important behavior:
+
+- Loading the demo does not overwrite the saved voyage in this browser.
+- Loading the demo does not save automatically.
+- The DM tracker shows a Demo Mode banner while the temporary demo is active.
+- The player view still receives a normal player-safe state from the demo.
+- Export still works in Demo Mode.
+- Clicking **Save** while in Demo Mode asks before converting the demo into the current saved voyage.
+- Cancelling the save confirmation leaves the demo temporary and preserves the existing saved voyage.
+- Confirming the save conversion clears Demo Mode and saves the voyage normally.
 
 ---
 
@@ -535,6 +569,9 @@ Important behavior:
 - **Start Voyage** is the point where a setup-created voyage is saved and published.
 - If an existing save is present, **Start Voyage** asks before replacing it.
 - **Back to Landing** and **Reset Setup Defaults** do not replace the current save.
+- **Load Demo Voyage** creates a temporary demo and does not overwrite the current saved voyage.
+- Demo Mode changes are temporary unless the DM explicitly saves the demo as the current saved voyage.
+- Saving while in Demo Mode asks for confirmation before replacing the current saved voyage.
 - Use **Resume Current Voyage** on the landing screen to resume the saved browser state.
 - Use **Save** on the DM screen to manually save the full tracker state.
 - Use **Export** to download the current tracker state as a `.json` backup file.
@@ -589,6 +626,8 @@ The manual checklist covers browser behavior that the automated tests do not ful
 - Player screen loading
 - Startup landing screen behavior
 - DM tracker `Open Player View` link
+- Demo Mode no-save behavior
+- Demo save-conversion behavior
 - New voyage setup behavior
 - Setup validation
 - Save-overwrite protection
@@ -634,6 +673,12 @@ Check the setup error message, then confirm that the ship name is valid and all 
 That is intended.
 
 Opening setup, editing setup fields, using **Reset Setup Defaults**, and clicking **Back to Landing** do not overwrite saved data. The existing save is only replaced by a valid **Start Voyage** submit after overwrite confirmation.
+
+## Load Demo Voyage did not replace my saved voyage
+
+That is intended.
+
+Demo Mode is temporary by default. It does not replace the current browser save unless you click **Save** while in Demo Mode and confirm the save conversion.
 
 ## Saved state is missing
 
