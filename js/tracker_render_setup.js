@@ -30,7 +30,7 @@ function landingScreenMarkup(hasSavedVoyage) {
       <div class="landing-actions">
         <button class="landing-action-button primary" type="button" data-action="start-new-voyage">
           <span>Start a New Voyage</span>
-          <small>Open setup to configure the ship and crew before starting.</small>
+          <small>Open setup to configure the ship and crew.</small>
         </button>
         <button class="landing-action-button" type="button" data-action="resume-current-voyage"${resumeDisabled}>
           <span>Resume Current Voyage</span>
@@ -42,7 +42,7 @@ function landingScreenMarkup(hasSavedVoyage) {
         </button>
         <button class="landing-action-button" type="button" data-action="load-demo-voyage">
           <span>Load Demo Voyage</span>
-          <small>Try the default Marrowwind voyage without replacing your saved voyage.</small>
+          <small>Try the default Marrowwind voyage.<br />Does not replace your saved voyage.</small>
         </button>
       </div>
       <div class="landing-note">
@@ -102,14 +102,14 @@ function setupScreenMarkup(draft, hasSavedVoyage) {
         </div>
       </div>
       <p class="landing-subtitle">
-        Configure the voyage draft. Nothing here saves, publishes, or overwrites an existing voyage yet.
+        Configure the voyage. Name your ship and select your crew. 
       </p>
       <div class="setup-form">
         <div class="setup-grid">
           <label>
             <span>Voyage Preset</span>
             <select data-change-action="set-setup-field" data-field="voyagePreset">
-              <option value="marrowwind"${draft.voyagePreset === 'marrowwind' ? ' selected' : ''}>Marrowwind Default</option>
+              <option value="marrowwind"${draft.voyagePreset === 'marrowwind' ? ' selected' : ''}>Default</option>
             </select>
           </label>
           <label>

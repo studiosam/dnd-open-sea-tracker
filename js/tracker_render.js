@@ -101,6 +101,142 @@ function renderDemoModeBanner() {
   banner.classList.toggle('hidden', !markup);
 }
 
+function requestAppConfirmation(options, onConfirm, onCancel = () => false) {
+  const config = normalizedAppConfirmationOptions(options);
+  if (!canRenderAppModal()) {
+    let callbackResult = false;
+    const confirmed = confirm(`${config.title}\n\n${config.message}`);
+    if (confirmed) callbackResult = onConfirm?.() ?? true;
+    else callbackResult = onCancel?.() ?? false;
+    return callbackResult;
+  }
+  closeAppModal();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'app-modal-backdrop';
+  wrapper.innerHTML = appConfirmationMarkup(config);
+  document.body.appendChild(wrapper);
+  document.body.classList.add('app-modal-open');
+  const cancelButton = wrapper.querySelector('[data-modal-action="cancel"]');
+  const confirmButton = wrapper.querySelector('[data-modal-action="confirm"]');
+  const close = (confirmed) => {
+    wrapper.remove();
+    document.body.classList.remove('app-modal-open');
+    document.removeEventListener('keydown', onKeydown);
+    if (confirmed) onConfirm?.();
+    else onCancel?.();
+  };
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') close(false);
+  };
+  cancelButton?.addEventListener('click', () => close(false));
+  confirmButton?.addEventListener('click', () => close(true));
+  wrapper.addEventListener('click', (event) => {
+    if (event.target === wrapper) close(false);
+  });
+  document.addEventListener('keydown', onKeydown);
+  cancelButton?.focus();
+  return false;
+}
+
+function showAppAlert(options, onClose = () => false) {
+  const config = normalizedAppAlertOptions(options);
+  if (!canRenderAppModal()) {
+    console.warn(`${config.title}: ${config.message}`);
+    return onClose?.() ?? false;
+  }
+  closeAppModal();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'app-modal-backdrop';
+  wrapper.innerHTML = appAlertMarkup(config);
+  document.body.appendChild(wrapper);
+  document.body.classList.add('app-modal-open');
+  const closeButton = wrapper.querySelector('[data-modal-action="close"]');
+  const close = () => {
+    wrapper.remove();
+    document.body.classList.remove('app-modal-open');
+    document.removeEventListener('keydown', onKeydown);
+    onClose?.();
+  };
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') close();
+  };
+  closeButton?.addEventListener('click', close);
+  wrapper.addEventListener('click', (event) => {
+    if (event.target === wrapper) close();
+  });
+  document.addEventListener('keydown', onKeydown);
+  closeButton?.focus();
+  return false;
+}
+
+function closeAppModal() {
+  if (!canRenderAppModal()) return;
+  document.querySelector('.app-modal-backdrop')?.remove();
+  document.body.classList.remove('app-modal-open');
+}
+
+function canRenderAppModal() {
+  return (
+    typeof document !== 'undefined' && document.body && typeof document.createElement === 'function'
+  );
+}
+
+function normalizedAppConfirmationOptions(options = {}) {
+  return {
+    title: String(options.title || 'Confirm Action'),
+    message: String(options.message || 'Are you sure?'),
+    confirmLabel: String(options.confirmLabel || 'Confirm'),
+    cancelLabel: String(options.cancelLabel || 'Cancel'),
+    danger: Boolean(options.danger)
+  };
+}
+
+function appConfirmationMarkup(options = {}) {
+  const config = normalizedAppConfirmationOptions(options);
+  const dangerClass = config.danger ? ' danger' : '';
+  const confirmClass = config.danger ? 'danger' : 'primary';
+  return `<div class="app-modal-card${dangerClass}" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle" aria-describedby="appConfirmMessage">
+    <div class="app-modal-kicker">Confirmation Required</div>
+    <h2 id="appConfirmTitle">${h(config.title)}</h2>
+    <p id="appConfirmMessage">${h(config.message)}</p>
+    <div class="app-modal-actions">
+      <button type="button" data-modal-action="cancel">${h(config.cancelLabel)}</button>
+      <button class="${confirmClass}" type="button" data-modal-action="confirm">${h(config.confirmLabel)}</button>
+    </div>
+  </div>`;
+}
+
+function normalizedAppAlertOptions(options = {}) {
+  if (typeof options === 'string') {
+    return {
+      title: 'Notice',
+      message: options,
+      buttonLabel: 'OK',
+      danger: false
+    };
+  }
+  return {
+    title: String(options.title || 'Notice'),
+    message: String(options.message || ''),
+    buttonLabel: String(options.buttonLabel || 'OK'),
+    danger: Boolean(options.danger)
+  };
+}
+
+function appAlertMarkup(options = {}) {
+  const config = normalizedAppAlertOptions(options);
+  const dangerClass = config.danger ? ' danger' : '';
+  const buttonClass = config.danger ? 'danger' : 'primary';
+  return `<div class="app-modal-card${dangerClass}" role="alertdialog" aria-modal="true" aria-labelledby="appAlertTitle" aria-describedby="appAlertMessage">
+    <div class="app-modal-kicker">Notice</div>
+    <h2 id="appAlertTitle">${h(config.title)}</h2>
+    <p id="appAlertMessage">${h(config.message)}</p>
+    <div class="app-modal-actions">
+      <button class="${buttonClass}" type="button" data-modal-action="close">${h(config.buttonLabel)}</button>
+    </div>
+  </div>`;
+}
+
 function waterScoreClass() {
   const level = Number(state.waterLevel);
   if (level >= 15) return 'danger';

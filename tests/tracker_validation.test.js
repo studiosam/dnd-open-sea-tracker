@@ -392,6 +392,92 @@ test('import validation allows null prompt DCs and rejects invalid DCs', () => {
   assert.match(result[5], /Pending prompt 1 DC must be a finite number 0 or greater/);
 });
 
+test('current tracker exports parse and import successfully', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const exportPayload = trackerExportPayload({
+      ...structuredClone(defaultState),
+      shipName: 'The Tide Needle',
+      day: 3,
+      turn: 4,
+      waterLevel: 6,
+      pendingChecks: [{
+        id: 'manual-prompt',
+        phase: 'action',
+        type: 'manual',
+        status: 'pending',
+        title: 'Manual Prompt',
+        detail: 'Resolve manually.',
+        dc: null
+      }]
+    });
+    const parsed = parseImportedStateJson(JSON.stringify(exportPayload));
+    const normalized = normalizeImportedState(parsed);
+    return {
+      appId: parsed.appId,
+      exportType: parsed.exportType,
+      shipName: normalized.shipName,
+      day: normalized.day,
+      turn: normalized.turn,
+      waterLevel: normalized.waterLevel,
+      promptDc: normalized.pendingChecks[0].dc,
+      demoMode: normalized.demoMode
+    };
+  })()`);
+  assert.equal(result.appId, 'open-sea-tracker');
+  assert.equal(result.exportType, 'tracker-state');
+  assert.equal(result.shipName, 'The Tide Needle');
+  assert.equal(result.day, 3);
+  assert.equal(result.turn, 4);
+  assert.equal(result.waterLevel, 6);
+  assert.equal(result.promptDc, null);
+  assert.equal(result.demoMode, false);
+});
+
+test('file imports reject missing or wrong app identity before normalization', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    const validState = trackerExportPayload(structuredClone(defaultState));
+    const cases = {
+      unrelatedApp: {
+        spellbooks: [],
+        customSpells: [],
+        notes: [],
+        exportDate: '2026-04-25T18:39:40.430Z',
+        version: '1.0'
+      },
+      missingAppId: (() => { const payload = {...validState}; delete payload.appId; return payload; })(),
+      missingExportType: (() => { const payload = {...validState}; delete payload.exportType; return payload; })(),
+      wrongAppId: {...validState, appId: 'spellbook-app'},
+      wrongExportType: {...validState, exportType: 'spellbook-state'},
+      versionOnly: {version: APP_VERSION},
+      array: [],
+      nullPayload: null,
+      invalidTracker: {...validState, crew: structuredClone(defaultState.crew).slice(0, 3)}
+    };
+    return Object.fromEntries(Object.entries(cases).map(([key, payload]) => {
+      try {
+        const parsed = parseImportedStateJson(JSON.stringify(payload));
+        normalizeImportedState(parsed);
+        return [key, 'accepted'];
+      } catch (error) {
+        return [key, error.message];
+      }
+    }));
+  })()`);
+  [
+    'unrelatedApp',
+    'missingAppId',
+    'missingExportType',
+    'wrongAppId',
+    'wrongExportType',
+    'versionOnly',
+    'array',
+    'nullPayload'
+  ].forEach((key) => assert.match(result[key], /not an Open Sea Tracker export/));
+  assert.match(result.invalidTracker, /Crew size.*between 4 and 7/);
+});
+
 test('import normalization migrates compatible old saves', () => {
   const tracker = loadTrackerContext();
   const result = tracker.evaluate(`(() => {
@@ -413,7 +499,7 @@ test('import normalization migrates compatible old saves', () => {
       crewSize: imported.crew.length
     };
   })()`);
-  assert.equal(result.version, 10);
+  assert.equal(result.version, 11);
   assert.equal(result.travelTicks, 38);
   assert.equal(result.travel, 4.75);
   assert.equal(result.mastStatus, 'Repaired');
@@ -476,6 +562,70 @@ test('dm tracker header exposes navigation controls', () => {
   assert.match(html, /href="player_view\.html"/);
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="noopener"/);
+});
+
+test('app confirmation modal renders safe branded markup', () => {
+  const tracker = loadTrackerContext();
+  const markup = tracker.evaluate(`appConfirmationMarkup({
+    title: 'Replace <Saved> Voyage?',
+    message: 'Overwrite <strong>save</strong> data?',
+    confirmLabel: 'Replace Save',
+    cancelLabel: 'Keep Save',
+    danger: true
+  })`);
+  assert.match(markup, /app-modal-card danger/);
+  assert.match(markup, /role="dialog"/);
+  assert.match(markup, /aria-modal="true"/);
+  assert.match(markup, /Confirmation Required/);
+  assert.match(markup, /Replace &lt;Saved&gt; Voyage\?/);
+  assert.match(markup, /Overwrite &lt;strong&gt;save&lt;\/strong&gt; data\?/);
+  assert.doesNotMatch(markup, /<strong>save<\/strong>/);
+  assert.match(markup, /Replace Save/);
+  assert.match(markup, /Keep Save/);
+});
+
+test('app alert modal renders safe branded markup', () => {
+  const tracker = loadTrackerContext();
+  const markup = tracker.evaluate(`appAlertMarkup({
+    title: 'Import <Failed>',
+    message: 'Do not render <img src=x onerror=alert(1)>.',
+    buttonLabel: 'Understood',
+    danger: true
+  })`);
+  assert.match(markup, /app-modal-card danger/);
+  assert.match(markup, /role="alertdialog"/);
+  assert.match(markup, /aria-modal="true"/);
+  assert.match(markup, /Notice/);
+  assert.match(markup, /Import &lt;Failed&gt;/);
+  assert.match(markup, /Do not render &lt;img src=x onerror=alert\(1\)&gt;\./);
+  assert.doesNotMatch(markup, /<img/);
+  assert.match(markup, /Understood/);
+});
+
+test('risky save actions use app confirmation helper', () => {
+  const setupSource = readProjectFile('js/tracker_setup.js');
+  const persistenceSource = readProjectFile('js/tracker_persistence.js');
+  assert.doesNotMatch(setupSource, /\bconfirm\(/);
+  assert.doesNotMatch(persistenceSource, /\bconfirm\(/);
+  assert.match(setupSource, /requestAppConfirmation/);
+  assert.match(persistenceSource, /requestAppConfirmation/);
+});
+
+test('app code uses modal alerts instead of browser alerts', () => {
+  const appFiles = [
+    'js/action_metadata.js',
+    'js/tracker_state.js',
+    'js/tracker_render_setup.js',
+    'js/tracker_render.js',
+    'js/tracker_gameplay.js',
+    'js/tracker_persistence.js',
+    'js/tracker_setup.js',
+    'js/tracker.js',
+    'js/player_view.js'
+  ];
+  appFiles.forEach((file) => assert.doesNotMatch(readProjectFile(file), /\balert\s*\(/, file));
+  assert.match(readProjectFile('js/tracker_gameplay.js'), /showAppAlert/);
+  assert.match(readProjectFile('js/tracker_persistence.js'), /showAppAlert/);
 });
 
 test('load demo voyage enters tracker mode without saving', () => {
@@ -720,9 +870,9 @@ test('dm header renders the ship name', () => {
   assert.equal(title, 'The Tide Needle Tracker');
 });
 
-test('exported saves include normalized ship name', () => {
+test('exported saves include app identity and normal tracker fields', () => {
   const tracker = loadTrackerContext();
-  const exportedShipName = tracker.evaluate(`(() => {
+  const exported = tracker.evaluate(`(() => {
     let exportedText = '';
     syncFromInputs = () => {};
     render = () => {};
@@ -734,10 +884,32 @@ test('exported saves include normalized ship name', () => {
     };
     state = structuredClone(defaultState);
     state.shipName = ' The Tide Needle ';
+    state.day = 7;
+    state.turn = 3;
+    state.waterLevel = 9;
     exportState();
-    return JSON.parse(exportedText).shipName;
+    const parsed = JSON.parse(exportedText);
+    return {
+      appId: parsed.appId,
+      exportType: parsed.exportType,
+      version: parsed.version,
+      shipName: parsed.shipName,
+      day: parsed.day,
+      turn: parsed.turn,
+      crewIsArray: Array.isArray(parsed.crew),
+      crewCount: parsed.crew.length,
+      waterLevel: parsed.waterLevel
+    };
   })()`);
-  assert.equal(exportedShipName, 'The Tide Needle');
+  assert.equal(exported.appId, 'open-sea-tracker');
+  assert.equal(exported.exportType, 'tracker-state');
+  assert.equal(exported.version, 11);
+  assert.equal(exported.shipName, 'The Tide Needle');
+  assert.equal(exported.day, 7);
+  assert.equal(exported.turn, 3);
+  assert.equal(exported.crewIsArray, true);
+  assert.equal(exported.crewCount, 6);
+  assert.equal(exported.waterLevel, 9);
 });
 
 test('starting a new voyage opens setup without overwriting saves', () => {

@@ -289,9 +289,9 @@ This should not overwrite the saved voyage. It only reads and resumes the curren
 
 ## Import Saved Voyage
 
-Opens the import flow for a previously exported tracker `.json` file.
+Opens the import flow for a previously exported Open Sea Tracker `.json` file.
 
-The import uses validation and migration before replacing the current state.
+The import requires Open Sea Tracker export identity fields before validation and migration replace the current state.
 
 ## Load Demo Voyage
 
@@ -576,7 +576,7 @@ Important behavior:
 - Use **Resume Current Voyage** on the landing screen to resume the saved browser state.
 - Use **Save** on the DM screen to manually save the full tracker state.
 - Use **Export** to download the current tracker state as a `.json` backup file.
-- Use **Import** or **Import Saved Voyage** to restore a previously exported `.json` backup file.
+- Use **Import** or **Import Saved Voyage** to restore a previously exported Open Sea Tracker `.json` backup file.
 - Use **Undo** to restore the state from before the last meaningful change.
 - The app keeps the 20 most recent undo snapshots for the current page session.
 - Use **Reset** only when you want to start over.
@@ -587,7 +587,9 @@ Saved data is tied to the browser profile and local page/site data. If you switc
 
 Exported files go to the browser's normal download location, usually the Downloads folder unless your browser asks where to save each file.
 
-Import accepts JSON tracker-state objects up to 1 MB, validates the payload, migrates compatible older saves, rejects unsafe object keys, and validates the migrated state before replacing the current tracker state.
+Exports include `appId: "open-sea-tracker"` and `exportType: "tracker-state"` so the app can reject unrelated JSON files.
+
+Import accepts Open Sea Tracker export files up to 1 MB, validates the export identity and payload, rejects unsafe object keys, and validates the migrated state before replacing the current tracker state.
 
 `Undo` can restore the state from before the import during the same page session.
 
@@ -697,4 +699,4 @@ Use the DM scoreboard override controls and the activity log to document the cor
 
 ## Import fails
 
-Check that the file is a valid exported tracker `.json` file and is under the import size limit.
+Check that the file is a valid Open Sea Tracker export `.json` file and is under the import size limit. JSON files from other apps are intentionally rejected.

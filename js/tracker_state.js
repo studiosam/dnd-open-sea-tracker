@@ -1,5 +1,7 @@
 // Shared tracker state, rule tables, and low-level rule helpers.
-const APP_VERSION = 10;
+const APP_VERSION = 11;
+const APP_ID = 'open-sea-tracker';
+const EXPORT_TYPE_TRACKER_STATE = 'tracker-state';
 const PLAYER_STATE_KEY = 'openSeaPlayerState';
 const ACTION_COMMIT_SNAPSHOT_KEY = 'openSeaActionCommitSnapshot';
 const DEFAULT_SHIP_NAME = 'The Marrowwind';
@@ -25,6 +27,8 @@ const SETUP_CREW_TRAIT_FIELDS = [
 // Canonical starting state for a new tracker session.
 // Migrations use this as a complete fallback when older saves are missing fields.
 const defaultState = {
+  appId: APP_ID,
+  exportType: EXPORT_TYPE_TRACKER_STATE,
   version: APP_VERSION,
   setupComplete: true,
   demoMode: false,

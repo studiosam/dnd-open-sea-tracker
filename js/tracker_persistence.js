@@ -54,22 +54,37 @@ const IMPORT_WORK_STATUSES = ['active', 'pending', 'resolved', 'cancelled'];
 const IMPORT_TEXT_MAX_LENGTH = 5000;
 const DEMO_SAVE_CONFIRMATION =
   'Save this demo voyage as your current saved voyage? This will replace the saved voyage in this browser.';
+const RESET_TRACKER_CONFIRMATION =
+  'Reset the tracker to its default state? Export your current voyage first if you want to keep it.';
 function saveState() {
   syncFromInputs();
   if (state.demoMode) {
-    if (!confirm(DEMO_SAVE_CONFIRMATION)) {
-      render();
-      return false;
-    }
-    state.demoMode = false;
-    log('Demo voyage saved as a real voyage.');
-    saveStateSnapshot();
-    publishPlayerState();
-    render();
-    return true;
+    return requestAppConfirmation(
+      {
+        title: 'Save Demo Voyage?',
+        message: DEMO_SAVE_CONFIRMATION,
+        confirmLabel: 'Save Voyage',
+        cancelLabel: 'Stay in Demo Mode',
+        danger: true
+      },
+      commitDemoVoyageSave,
+      () => {
+        render();
+        return false;
+      }
+    );
   }
   saveStateSnapshot();
   log('Saved the tracker state.');
+  render();
+  return true;
+}
+
+function commitDemoVoyageSave() {
+  state.demoMode = false;
+  log('Demo voyage saved as a real voyage.');
+  saveStateSnapshot();
+  publishPlayerState();
   render();
   return true;
 }
@@ -78,8 +93,10 @@ function saveState() {
 function exportState() {
   syncFromInputs();
   state.version = APP_VERSION;
+  state.appId = APP_ID;
+  state.exportType = EXPORT_TYPE_TRACKER_STATE;
   state.shipName = normalizedShipName(state.shipName);
-  const exportState = structuredClone(state);
+  const exportState = trackerExportPayload(state);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `marrowwind-tracker-day-${state.day}-turn-${state.turn}-${timestamp}.json`;
   const blob = new Blob([JSON.stringify(exportState, null, 2)], {
@@ -142,9 +159,11 @@ function importSavedVoyage() {
 function importStateFile(file) {
   if (!file) return;
   if (Number(file.size || 0) > IMPORT_MAX_BYTES) {
-    alert(
-      `Import failed: ${file.name || 'Selected file'} is too large. Maximum supported size is ${formatNumber(IMPORT_MAX_BYTES / 1024)} KB.`
-    );
+    showAppAlert({
+      title: 'Import Failed',
+      message: `${file.name || 'Selected file'} is too large. Maximum supported size is ${formatNumber(IMPORT_MAX_BYTES / 1024)} KB.`,
+      danger: true
+    });
     return;
   }
   const reader = new FileReader();
@@ -160,17 +179,47 @@ function importStateFile(file) {
       enterTrackerMode();
       render();
     } catch (error) {
-      alert(`Import failed: ${error.message}`);
+      showAppAlert({
+        title: 'Import Failed',
+        message: error.message,
+        danger: true
+      });
     }
   };
-  reader.onerror = () => alert('Import failed: the file could not be read.');
+  reader.onerror = () =>
+    showAppAlert({
+      title: 'Import Failed',
+      message: 'The file could not be read.',
+      danger: true
+    });
   reader.readAsText(file);
 }
 
 function parseImportedStateJson(rawText) {
   const importedState = JSON.parse(String(rawText || ''));
+  validateImportedExportIdentity(importedState);
   validateImportedStatePayload(importedState);
   return importedState;
+}
+
+function trackerExportPayload(sourceState = state) {
+  return {
+    ...structuredClone(sourceState),
+    appId: APP_ID,
+    exportType: EXPORT_TYPE_TRACKER_STATE,
+    version: APP_VERSION
+  };
+}
+
+function validateImportedExportIdentity(importedState) {
+  if (
+    !isPlainImportObject(importedState) ||
+    importedState.appId !== APP_ID ||
+    importedState.exportType !== EXPORT_TYPE_TRACKER_STATE
+  ) {
+    throw new Error('This file is not an Open Sea Tracker export.');
+  }
+  return true;
 }
 
 function normalizeImportedState(importedState) {
@@ -669,6 +718,8 @@ function validateImportedStartedGroups(startedGroups, errors) {
 function saveStateSnapshot() {
   if (state.demoMode) return false;
   state.version = APP_VERSION;
+  state.appId = APP_ID;
+  state.exportType = EXPORT_TYPE_TRACKER_STATE;
   state.shipName = normalizedShipName(state.shipName);
   syncTravelDaysFromTicks();
   localStorage.setItem('openSeaTracker', JSON.stringify(state));
@@ -784,21 +835,35 @@ function loadState() {
 }
 
 function resetState() {
-  if (confirm('Reset tracker?')) {
-    pushUndo('Reset tracker');
-    clearActionCommitSnapshot();
-    if (state.demoMode) {
-      state = createDemoTrackerState();
-      state.log = `Day ${state.day}, Turn ${state.turn}: Demo voyage reset.\n`;
-      enterTrackerMode();
-      publishPlayerState();
-      render();
-      return;
-    }
-    state = structuredClone(defaultState);
+  return requestAppConfirmation(
+    {
+      title: state.demoMode ? 'Reset Demo Voyage?' : 'Reset Tracker?',
+      message: state.demoMode
+        ? 'Reset the demo voyage to its starting state? Your real saved voyage will not be changed.'
+        : RESET_TRACKER_CONFIRMATION,
+      confirmLabel: state.demoMode ? 'Reset Demo' : 'Reset Tracker',
+      cancelLabel: 'Cancel',
+      danger: true
+    },
+    commitTrackerReset
+  );
+}
+
+function commitTrackerReset() {
+  pushUndo('Reset tracker');
+  clearActionCommitSnapshot();
+  if (state.demoMode) {
+    state = createDemoTrackerState();
+    state.log = `Day ${state.day}, Turn ${state.turn}: Demo voyage reset.\n`;
     enterTrackerMode();
+    publishPlayerState();
     render();
+    return true;
   }
+  state = structuredClone(defaultState);
+  enterTrackerMode();
+  render();
+  return true;
 }
 
 function runDevValidator() {
@@ -1301,6 +1366,8 @@ function migrateState() {
   const hadTravelTicks = Object.prototype.hasOwnProperty.call(incomingState, 'travelTicks');
   state = { ...structuredClone(defaultState), ...incomingState };
   state.version = APP_VERSION;
+  state.appId = APP_ID;
+  state.exportType = EXPORT_TYPE_TRACKER_STATE;
   state.setupComplete = state.setupComplete !== false;
   state.demoMode = Boolean(state.demoMode);
   state.shipName = normalizedShipName(state.shipName);

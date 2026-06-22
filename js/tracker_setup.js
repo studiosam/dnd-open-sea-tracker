@@ -47,10 +47,26 @@ function startSetupVoyage() {
     renderSetupScreen();
     return false;
   }
-  if (readSavedVoyageState() && !confirm(SETUP_OVERWRITE_CONFIRMATION)) {
-    renderSetupScreen();
-    return false;
+  if (readSavedVoyageState()) {
+    return requestAppConfirmation(
+      {
+        title: 'Replace Saved Voyage?',
+        message: SETUP_OVERWRITE_CONFIRMATION,
+        confirmLabel: 'Start New Voyage',
+        cancelLabel: 'Keep Current Save',
+        danger: true
+      },
+      () => commitSetupVoyage(normalizedDraft),
+      () => {
+        renderSetupScreen();
+        return false;
+      }
+    );
   }
+  return commitSetupVoyage(normalizedDraft);
+}
+
+function commitSetupVoyage(normalizedDraft) {
   undoStack = [];
   clearActionCommitSnapshot();
   state = createTrackerStateFromSetup(normalizedDraft);

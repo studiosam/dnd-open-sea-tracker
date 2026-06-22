@@ -84,7 +84,10 @@ function renameCrewMember(index, rawName) {
   if (
     state.crew.some((crewMember, crewIndex) => crewIndex !== index && crewMember.name === newName)
   ) {
-    alert(`Crew name "${newName}" is already in use.`);
+    showAppAlert({
+      title: 'Crew Name Already Used',
+      message: `Crew name "${newName}" is already in use. Choose a unique name.`
+    });
     render();
     return;
   }

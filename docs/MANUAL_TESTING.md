@@ -739,6 +739,9 @@ On the DM screen:
 
 - [ ] Export the current state.
 - [ ] Confirm a JSON file downloads.
+- [ ] Open the JSON file.
+- [ ] Confirm it includes `"appId": "open-sea-tracker"`.
+- [ ] Confirm it includes `"exportType": "tracker-state"`.
 - [ ] Reset the tracker or start another voyage.
 - [ ] Import the exported JSON file.
 - [ ] Confirm the imported state restores correctly.
@@ -781,6 +784,28 @@ Then:
 - [ ] Try to import the bad file.
 - [ ] Confirm the import is rejected.
 - [ ] Confirm an error message appears.
+- [ ] Confirm the current tracker state is not damaged.
+- [ ] Confirm the app still works after the failed import.
+
+## Unrelated JSON Import
+
+Create or reuse a valid JSON file from another app, such as:
+
+```json
+{
+  "spellbooks": [],
+  "customSpells": [],
+  "notes": [],
+  "exportDate": "2026-04-25T18:39:40.430Z",
+  "version": "1.0"
+}
+```
+
+Then:
+
+- [ ] Try to import the unrelated JSON file.
+- [ ] Confirm the import is rejected.
+- [ ] Confirm the error message clearly says the file is not an Open Sea Tracker export.
 - [ ] Confirm the current tracker state is not damaged.
 - [ ] Confirm the app still works after the failed import.
 
