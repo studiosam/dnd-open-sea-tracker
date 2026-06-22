@@ -429,6 +429,29 @@ test('load demo voyage without an existing save leaves the save slot empty', () 
   assert.equal(result.demoMode, true);
 });
 
+test('demo mode save snapshot guard prevents gameplay autosaves', () => {
+  const tracker = loadTrackerContext();
+  const result = tracker.evaluate(`(() => {
+    localStorage.setItem('openSeaTracker', JSON.stringify({...defaultState, shipName: 'Protected Save', day: 5}));
+    state = createDemoTrackerState();
+    state.shipName = 'Autosave Demo';
+    state.day = 12;
+    const saved = saveStateSnapshot();
+    const stored = JSON.parse(localStorage.getItem('openSeaTracker'));
+    return {
+      saved,
+      demoMode: state.demoMode,
+      storedShipName: stored.shipName,
+      storedDay: stored.day
+    };
+  })()`);
+
+  assert.equal(result.saved, false);
+  assert.equal(result.demoMode, true);
+  assert.equal(result.storedShipName, 'Protected Save');
+  assert.equal(result.storedDay, 5);
+});
+
 test('resume after unsaved demo keeps the original saved voyage', () => {
   const tracker = loadTrackerContext();
   const result = tracker.evaluate(`(() => {
