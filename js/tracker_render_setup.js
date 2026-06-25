@@ -6,6 +6,7 @@ function renderLandingScreen() {
     document.body?.classList.add('landing-active');
     document.body?.classList.remove('demo-mode-active');
   }
+  landing.classList?.add('startup-landing-screen');
   landing.innerHTML = landingScreenMarkup(Boolean(readSavedVoyageState()));
 }
 
@@ -14,6 +15,29 @@ function landingScreenMarkup(hasSavedVoyage) {
   const resumeNote = hasSavedVoyage
     ? 'A saved voyage is available in this browser.'
     : 'No saved voyage found in this browser.';
+  const startButtonClass = hasSavedVoyage
+    ? 'landing-action-button landing-action-secondary'
+    : 'landing-action-button landing-action-primary primary';
+  const resumeButtonClass = hasSavedVoyage
+    ? 'landing-action-button landing-action-primary primary'
+    : 'landing-action-button landing-action-secondary';
+  const startupActions = hasSavedVoyage
+    ? `<button class="${resumeButtonClass}" type="button" data-action="resume-current-voyage"${resumeDisabled}>
+          <span>Resume Current Voyage</span>
+          <small>${h(resumeNote)}</small>
+        </button>
+        <button class="${startButtonClass}" type="button" data-action="start-new-voyage">
+          <span>Start a New Voyage</span>
+          <small>Open setup to configure the ship and crew before starting.</small>
+        </button>`
+    : `<button class="${startButtonClass}" type="button" data-action="start-new-voyage">
+          <span>Start a New Voyage</span>
+          <small>Open setup to configure the ship and crew before starting.</small>
+        </button>
+        <button class="${resumeButtonClass}" type="button" data-action="resume-current-voyage"${resumeDisabled}>
+          <span>Resume Current Voyage</span>
+          <small>${h(resumeNote)}</small>
+        </button>`;
   return `<div class="landing-shell">
     <div class="landing-card">
       <div class="landing-brand">
@@ -28,24 +52,17 @@ function landingScreenMarkup(hasSavedVoyage) {
         navigation, hidden information, and player-facing ship status.
       </p>
       <div class="landing-actions">
-        <button class="landing-action-button primary" type="button" data-action="start-new-voyage">
-          <span>Start a New Voyage</span>
-          <small>Open setup to configure the ship and crew.</small>
-        </button>
-        <button class="landing-action-button" type="button" data-action="resume-current-voyage"${resumeDisabled}>
-          <span>Resume Current Voyage</span>
-          <small>${h(resumeNote)}</small>
-        </button>
-        <button class="landing-action-button" type="button" data-action="import-saved-voyage">
+        ${startupActions}
+        <button class="landing-action-button landing-action-secondary" type="button" data-action="import-saved-voyage">
           <span>Import Saved Voyage</span>
           <small>Load a previously exported tracker JSON file.</small>
         </button>
-        <button class="landing-action-button" type="button" data-action="load-demo-voyage">
+        <button class="landing-action-button landing-action-secondary" type="button" data-action="load-demo-voyage">
           <span>Load Demo Voyage</span>
           <small>Try the default Marrowwind voyage.<br />Does not replace your saved voyage.</small>
         </button>
       </div>
-      <div class="landing-note">
+      <div class="landing-note landing-storage-note">
         Saves are stored locally in this browser. Export backups before clearing browser data.
       </div>
     </div>
@@ -59,6 +76,7 @@ function renderSetupScreen() {
     document.body?.classList.add('landing-active');
     document.body?.classList.remove('demo-mode-active');
   }
+  landing.classList?.remove('startup-landing-screen');
   landing.innerHTML = setupScreenMarkup(setupDraftForRender(), Boolean(readSavedVoyageState()));
 }
 
